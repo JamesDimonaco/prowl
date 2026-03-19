@@ -1,0 +1,17 @@
+{
+  "name": "prowl",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.17.1",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "dev:web": "turbo dev --filter=@prowl/web",
+    "dev:scraper": "turbo dev --filter=@prowl/scraper"
+  },
+  "devDependencies": {
+    "turbo": "^2.8.19",
+    "typescript": "^5.9.3"
+  }
+}

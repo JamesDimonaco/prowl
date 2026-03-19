@@ -1,0 +1,12 @@
+services:
+  scraper:
+    build:
+      context: ./apps/scraper
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - SCRAPER_API_KEY=${SCRAPER_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
