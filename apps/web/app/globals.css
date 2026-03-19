@@ -48,37 +48,61 @@
 }
 
 :root {
-  --background: oklch(0.13 0.005 270);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.17 0.005 270);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.17 0.005 270);
-  --popover-foreground: oklch(0.97 0 0);
+  /* Background - rich dark blue-grey, not flat black */
+  --background: oklch(0.14 0.008 260);
+  --foreground: oklch(0.95 0.005 260);
+
+  /* Cards - slightly lifted from background with warm blue-grey hue */
+  --card: oklch(0.18 0.01 258);
+  --card-foreground: oklch(0.95 0.005 260);
+
+  /* Popovers - match card elevation */
+  --popover: oklch(0.20 0.012 258);
+  --popover-foreground: oklch(0.95 0.005 260);
+
+  /* Primary - vibrant but balanced blue-purple */
   --primary: oklch(0.65 0.2 265);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.22 0.01 270);
-  --secondary-foreground: oklch(0.9 0 0);
-  --muted: oklch(0.22 0.01 270);
-  --muted-foreground: oklch(0.65 0 0);
-  --accent: oklch(0.22 0.015 265);
-  --accent-foreground: oklch(0.9 0 0);
+
+  /* Secondary - subtle blue-grey tint */
+  --secondary: oklch(0.23 0.012 258);
+  --secondary-foreground: oklch(0.88 0.005 260);
+
+  /* Muted - blue-grey neutral for backgrounds */
+  --muted: oklch(0.22 0.012 258);
+  --muted-foreground: oklch(0.60 0.01 260);
+
+  /* Accent - slightly warmer blue-grey */
+  --accent: oklch(0.24 0.016 258);
+  --accent-foreground: oklch(0.88 0.005 260);
+
+  /* Destructive */
   --destructive: oklch(0.65 0.2 25);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
+
+  /* Borders - subtle blue-grey tinted, not pure white */
+  --border: oklch(0.90 0.01 260 / 8%);
+  --input: oklch(0.90 0.01 260 / 12%);
+
+  /* Ring */
   --ring: oklch(0.65 0.2 265);
+
+  /* Charts */
   --chart-1: oklch(0.7 0.18 265);
   --chart-2: oklch(0.65 0.2 150);
   --chart-3: oklch(0.7 0.18 50);
   --chart-4: oklch(0.65 0.15 310);
   --chart-5: oklch(0.7 0.2 25);
+
   --radius: 0.75rem;
-  --sidebar: oklch(0.15 0.005 270);
-  --sidebar-foreground: oklch(0.97 0 0);
+
+  /* Sidebar - slightly deeper than background */
+  --sidebar: oklch(0.16 0.008 260);
+  --sidebar-foreground: oklch(0.95 0.005 260);
   --sidebar-primary: oklch(0.65 0.2 265);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.22 0.015 265);
-  --sidebar-accent-foreground: oklch(0.9 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-accent: oklch(0.24 0.016 258);
+  --sidebar-accent-foreground: oklch(0.88 0.005 260);
+  --sidebar-border: oklch(0.90 0.01 260 / 8%);
   --sidebar-ring: oklch(0.65 0.2 265);
 }
 
@@ -87,7 +111,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans;

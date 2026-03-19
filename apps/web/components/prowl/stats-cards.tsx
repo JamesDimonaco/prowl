@@ -44,17 +44,15 @@ export function StatsCards({ monitors }: { monitors: MockMonitor[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {stats.map((stat) => (
-        <Card key={stat.label} className="border-border/50 bg-card/50 backdrop-blur">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+        <Card key={stat.label} className="border-border/30 bg-card/50 shadow-sm shadow-black/5 backdrop-blur">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-3">
               <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bg}`}>
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
             </div>
+            <p className="text-3xl font-bold tracking-tight tabular-nums">{stat.value}</p>
+            <p className="text-xs text-muted-foreground mt-1 font-medium">{stat.label}</p>
           </CardContent>
         </Card>
       ))}

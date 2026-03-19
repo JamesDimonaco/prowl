@@ -41,13 +41,21 @@ interface MonitorCardProps {
 }
 
 export function MonitorCard({ monitor, onTogglePause, onDelete, onEdit }: MonitorCardProps) {
+  const statusBorderColor =
+    monitor.status === "active"
+      ? "group-hover:border-l-emerald-500/50"
+      : monitor.status === "matched"
+        ? "group-hover:border-l-primary/50"
+        : monitor.status === "error"
+          ? "group-hover:border-l-red-500/50"
+          : "group-hover:border-l-amber-500/50";
+
   return (
-    <Card className="group relative overflow-hidden border-border/50 bg-card/50 backdrop-blur transition-all hover:border-border hover:bg-card/80">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-      <CardContent className="p-5">
+    <Card className={`group relative overflow-hidden border-border/30 border-l-2 border-l-transparent bg-card/50 shadow-sm shadow-black/5 backdrop-blur transition-all hover:shadow-md hover:shadow-black/10 hover:bg-card/80 ${statusBorderColor}`}>
+      <CardContent className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-2.5">
               <Link
                 href={`/dashboard/monitors/${monitor._id}`}
                 className="text-base font-semibold truncate hover:text-primary transition-colors"
@@ -57,11 +65,11 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onEdit }: Monito
               <StatusBadge status={monitor.status} />
             </div>
 
-            <p className="text-sm text-muted-foreground line-clamp-1 mb-3">
+            <p className="text-sm text-muted-foreground line-clamp-1 mb-4">
               &ldquo;{monitor.prompt}&rdquo;
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-5 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Globe className="h-3.5 w-3.5" />
                 <span className="truncate max-w-[200px]">{new URL(monitor.url).hostname}</span>
@@ -75,7 +83,7 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onEdit }: Monito
                 Checked {timeAgo(monitor.lastCheckedAt)}
               </span>
               {monitor.matchCount > 0 && (
-                <span className="text-primary font-medium">
+                <span className="text-primary font-semibold">
                   {monitor.matchCount} match{monitor.matchCount !== 1 && "es"}
                 </span>
               )}

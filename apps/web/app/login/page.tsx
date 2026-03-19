@@ -65,8 +65,8 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+        <div className="mb-10 text-center">
+          <Link href="/" className="inline-flex items-center gap-2 mb-8">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Radar className="h-5 w-5 text-primary" />
             </div>
@@ -74,14 +74,14 @@ export default function LoginPage() {
           </Link>
         </div>
 
-        <Card className="border-border/50 bg-card/80 backdrop-blur">
-          <CardHeader className="text-center pb-4">
-            <CardTitle>{isSignUp ? "Create account" : "Welcome back"}</CardTitle>
-            <CardDescription>
+        <Card className="border-border/30 bg-card/80 shadow-xl shadow-black/10 backdrop-blur">
+          <CardHeader className="text-center pb-2 px-8 pt-8">
+            <CardTitle className="text-xl font-bold tracking-tight">{isSignUp ? "Create account" : "Welcome back"}</CardTitle>
+            <CardDescription className="mt-1.5 text-sm">
               {isSignUp ? "Sign up to start monitoring" : "Sign in to your account"}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="px-8 pb-8 pt-6 space-y-6">
             <div className="grid grid-cols-2 gap-3">
               <Button
                 variant="outline"
@@ -110,15 +110,15 @@ export default function LoginPage() {
 
             <div className="relative">
               <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3 text-xs text-muted-foreground">
                 or
               </span>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-5">
               {isSignUp && (
                 <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="name" className="text-sm font-medium">Name</Label>
                   <Input
                     id="name"
                     placeholder="Your name"
@@ -129,7 +129,7 @@ export default function LoginPage() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                 <Input
                   id="email"
                   type="email"
@@ -140,7 +140,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -150,7 +150,7 @@ export default function LoginPage() {
                   required
                 />
               </div>
-              <Button type="submit" className="w-full gap-2" disabled={loading}>
+              <Button type="submit" className="w-full gap-2 mt-2" disabled={loading}>
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
@@ -160,7 +160,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm text-muted-foreground pt-1">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
                 onClick={() => setIsSignUp(!isSignUp)}

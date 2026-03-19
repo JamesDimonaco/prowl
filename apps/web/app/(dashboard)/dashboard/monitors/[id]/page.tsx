@@ -48,7 +48,7 @@ export default function MonitorDetailPage({
   const results = mockResults.filter((r) => r.monitorId === id);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="flex items-center gap-4">
         <Link href="/dashboard">
           <Button variant="ghost" size="icon">
@@ -60,7 +60,7 @@ export default function MonitorDetailPage({
             <h1 className="text-2xl font-bold tracking-tight">{monitor.name}</h1>
             <StatusBadge status={monitor.status} />
           </div>
-          <p className="text-muted-foreground mt-0.5">&ldquo;{monitor.prompt}&rdquo;</p>
+          <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">&ldquo;{monitor.prompt}&rdquo;</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-1.5">
@@ -88,81 +88,85 @@ export default function MonitorDetailPage({
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Globe className="h-4 w-4" />
+        <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+              <Globe className="h-3.5 w-3.5" />
               URL
             </div>
             <a
               href={monitor.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-primary hover:underline flex items-center gap-1"
+              className="text-sm font-medium text-primary hover:underline flex items-center gap-1.5"
             >
               {new URL(monitor.url).hostname}
               <ExternalLink className="h-3 w-3" />
             </a>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Clock className="h-4 w-4" />
+        <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+              <Clock className="h-3.5 w-3.5" />
               Check Interval
             </div>
-            <p className="text-sm font-medium">Every {monitor.checkInterval}</p>
+            <p className="text-sm font-semibold">Every {monitor.checkInterval}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <Zap className="h-4 w-4" />
+        <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+              <Zap className="h-3.5 w-3.5" />
               Matches
             </div>
-            <p className="text-sm font-medium">{monitor.matchCount} total</p>
+            <p className="text-sm font-semibold">{monitor.matchCount} total</p>
           </CardContent>
         </Card>
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4">Scrape History</h2>
+        <h2 className="text-xl font-bold tracking-tight mb-6">Scrape History</h2>
         {results.length === 0 ? (
-          <Card className="border-border/50 bg-card/50">
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No scrape results yet</p>
+          <Card className="border-border/30 bg-card/30 shadow-sm shadow-black/5">
+            <CardContent className="py-16 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/30 mx-auto mb-4">
+                <Clock className="h-5 w-5 text-muted-foreground/60" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">No scrape results yet</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Results will appear here after the first check</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {results.map((result) => (
-              <Card key={result._id} className="border-border/50 bg-card/50">
-                <CardContent className="p-4">
+              <Card key={result._id} className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+                <CardContent className="p-6">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       {result.hasNewMatches ? (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10">
                           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                         </div>
                       ) : result.error ? (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/10">
                           <XCircle className="h-4 w-4 text-red-400" />
                         </div>
                       ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted/50">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                         </div>
                       )}
                       <div>
-                        <p className="text-sm font-medium">
+                        <p className="text-sm font-semibold">
                           {result.hasNewMatches
                             ? `${result.matches.length} match${result.matches.length !== 1 ? "es" : ""} found`
                             : result.error
                               ? "Scrape failed"
                               : "No matches"}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(result.scrapedAt)} &middot; {result.totalItems} items scanned
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatDate(result.scrapedAt)} · {result.totalItems} items scanned
                         </p>
                       </div>
                     </div>
@@ -175,12 +179,12 @@ export default function MonitorDetailPage({
 
                   {result.matches.length > 0 && (
                     <>
-                      <Separator className="my-3" />
+                      <Separator className="my-4" />
                       <div className="space-y-2">
                         {result.matches.map((match, i) => (
                           <div
                             key={i}
-                            className="rounded-lg bg-background/50 p-3 text-sm font-mono"
+                            className="rounded-lg bg-background/50 p-4 text-sm font-mono shadow-sm shadow-black/5"
                           >
                             {JSON.stringify(match, null, 2)}
                           </div>

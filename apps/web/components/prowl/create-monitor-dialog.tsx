@@ -96,16 +96,16 @@ export function CreateMonitorDialog({
             </div>
             {isEdit ? "Edit Monitor" : "New Monitor"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm leading-relaxed">
             {isEdit
               ? "Update the monitor configuration."
               : "Paste a URL and describe what you're looking for. AI will handle the rest."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6 pt-2">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name" className="text-sm font-medium">Name</Label>
             <Input
               id="name"
               placeholder="e.g. MacBook Pro Refurbished"
@@ -116,7 +116,7 @@ export function CreateMonitorDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="url">URL to monitor</Label>
+            <Label htmlFor="url" className="text-sm font-medium">URL to monitor</Label>
             <Input
               id="url"
               type="url"
@@ -128,7 +128,7 @@ export function CreateMonitorDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="prompt">What are you looking for?</Label>
+            <Label htmlFor="prompt" className="text-sm font-medium">What are you looking for?</Label>
             <Textarea
               id="prompt"
               placeholder="e.g. MacBook Pro 14 inch M3 gray under $1500"
@@ -137,13 +137,13 @@ export function CreateMonitorDialog({
               rows={3}
               required
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               Describe in plain English. Be as specific as you want.
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label>Check frequency</Label>
+            <Label className="text-sm font-medium">Check frequency</Label>
             <Select value={checkInterval} onValueChange={(v) => setCheckInterval(v as MockMonitor["checkInterval"])}>
               <SelectTrigger>
                 <SelectValue />
@@ -159,7 +159,7 @@ export function CreateMonitorDialog({
             </Select>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="ghost"
@@ -167,7 +167,7 @@ export function CreateMonitorDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading} className="shadow-sm shadow-primary/15">
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEdit ? "Save Changes" : "Create Monitor"}
             </Button>

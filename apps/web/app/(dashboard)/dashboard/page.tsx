@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Radar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MonitorCard } from "@/components/prowl/monitor-card";
 import { StatsCards } from "@/components/prowl/stats-cards";
@@ -40,15 +40,15 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
             Monitor any website with natural language
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} size="lg" className="gap-2">
+        <Button onClick={() => setCreateOpen(true)} size="lg" className="gap-2 shadow-md shadow-primary/15">
           <Plus className="h-5 w-5" />
           New Monitor
         </Button>
@@ -80,22 +80,28 @@ export default function DashboardPage() {
         </Select>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 py-16">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-4">
-              <Search className="h-7 w-7 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center rounded-xl bg-card/30 shadow-sm shadow-black/5 py-20 px-8">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/5 mb-6">
+              {monitors.length === 0 ? (
+                <Radar className="h-7 w-7 text-primary/60" />
+              ) : (
+                <Search className="h-7 w-7 text-muted-foreground/60" />
+              )}
             </div>
-            <p className="text-lg font-medium mb-1">No monitors found</p>
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-lg font-semibold mb-2">
+              {monitors.length === 0 ? "Start monitoring the web" : "No monitors found"}
+            </p>
+            <p className="text-sm text-muted-foreground mb-6 max-w-sm text-center leading-relaxed">
               {monitors.length === 0
-                ? "Create your first monitor to start tracking"
-                : "Try adjusting your search or filters"}
+                ? "Create your first monitor to track changes on any website using natural language."
+                : "Try adjusting your search or filters to find what you're looking for."}
             </p>
             {monitors.length === 0 && (
-              <Button onClick={() => setCreateOpen(true)} variant="outline" className="gap-2">
+              <Button onClick={() => setCreateOpen(true)} className="gap-2 shadow-md shadow-primary/15">
                 <Plus className="h-4 w-4" />
-                Create Monitor
+                Create Your First Monitor
               </Button>
             )}
           </div>

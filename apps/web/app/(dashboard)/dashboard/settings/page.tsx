@@ -21,10 +21,10 @@ export default function SettingsPage() {
   const [discordWebhook, setDiscordWebhook] = useState("");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account and preferences</p>
+        <p className="text-muted-foreground mt-2 text-sm leading-relaxed">Manage your account and preferences</p>
       </div>
 
       <Tabs defaultValue="profile">
@@ -43,15 +43,15 @@ export default function SettingsPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="mt-6 space-y-6">
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-              <CardDescription>Your account information</CardDescription>
+        <TabsContent value="profile" className="mt-8 space-y-8">
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Profile</CardTitle>
+              <CardDescription className="text-sm">Your account information</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name" className="text-sm font-medium">Name</Label>
                 <Input
                   id="name"
                   value={name}
@@ -59,7 +59,7 @@ export default function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="settings-email">Email</Label>
+                <Label htmlFor="settings-email" className="text-sm font-medium">Email</Label>
                 <Input
                   id="settings-email"
                   type="email"
@@ -67,16 +67,18 @@ export default function SettingsPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <Button onClick={() => toast.success("Profile updated")}>
-                Save changes
-              </Button>
+              <div className="pt-2">
+                <Button onClick={() => toast.success("Profile updated")}>
+                  Save changes
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-destructive/20 bg-card/50">
-            <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>Irreversible actions</CardDescription>
+          <Card className="border-destructive/20 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold text-destructive">Danger Zone</CardTitle>
+              <CardDescription className="text-sm">Irreversible actions</CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="destructive">Delete account</Button>
@@ -84,20 +86,20 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="mt-6 space-y-6">
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
+        <TabsContent value="notifications" className="mt-8 space-y-8">
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Mail className="h-5 w-5 text-muted-foreground" />
                 Email
               </CardTitle>
-              <CardDescription>Get notified at your account email</CardDescription>
+              <CardDescription className="text-sm">Get notified at your account email</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">{email}</p>
-                  <p className="text-xs text-muted-foreground">Monitor match notifications</p>
+                  <p className="text-xs text-muted-foreground mt-1">Monitor match notifications</p>
                 </div>
                 <Button
                   variant={emailNotifs ? "default" : "outline"}
@@ -113,26 +115,26 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircle className="h-5 w-5" />
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <MessageCircle className="h-5 w-5 text-muted-foreground" />
                 Telegram
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Get instant notifications via Telegram bot
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="telegram">Chat ID</Label>
+                <Label htmlFor="telegram" className="text-sm font-medium">Chat ID</Label>
                 <Input
                   id="telegram"
                   placeholder="Your Telegram chat ID"
                   value={telegramChatId}
                   onChange={(e) => setTelegramChatId(e.target.value)}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Message @ProwlBot on Telegram to get your chat ID
                 </p>
               </div>
@@ -147,19 +149,19 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Hash className="h-5 w-5" />
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Hash className="h-5 w-5 text-muted-foreground" />
                 Discord
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Send notifications to a Discord channel via webhook
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="discord">Webhook URL</Label>
+                <Label htmlFor="discord" className="text-sm font-medium">Webhook URL</Label>
                 <Input
                   id="discord"
                   type="url"
@@ -180,48 +182,48 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="billing" className="mt-6 space-y-6">
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle>Current Plan</CardTitle>
+        <TabsContent value="billing" className="mt-8 space-y-8">
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Current Plan</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-lg font-semibold">Free</p>
-                    <Badge variant="outline">Current plan</Badge>
+                  <div className="flex items-center gap-3">
+                    <p className="text-xl font-bold">Free</p>
+                    <Badge variant="outline" className="text-xs">Current plan</Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
                     3 monitors, 6 hour check interval, email only
                   </p>
                 </div>
-                <Button>Upgrade to Pro</Button>
+                <Button className="shadow-md shadow-primary/15">Upgrade to Pro</Button>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-card/50">
-            <CardHeader>
-              <CardTitle>Usage</CardTitle>
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg font-semibold">Usage</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Monitors</span>
-                    <span className="text-muted-foreground">4 / 3</span>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="font-medium">Monitors</span>
+                    <span className="text-muted-foreground tabular-nums">4 / 3</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full w-full rounded-full bg-amber-500" />
                   </div>
-                  <p className="text-xs text-amber-400 mt-1">Over limit - upgrade to add more</p>
+                  <p className="text-xs text-amber-400 mt-2 font-medium">Over limit - upgrade to add more</p>
                 </div>
                 <Separator />
                 <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Checks today</span>
-                    <span className="text-muted-foreground">18</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">Checks today</span>
+                    <span className="text-muted-foreground tabular-nums">18</span>
                   </div>
                 </div>
               </div>
