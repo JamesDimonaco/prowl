@@ -60,45 +60,84 @@ export async function extractWithAI(
 
   const responseText = message.content[0].type === "text" ? message.content[0].text : "";
 
-  // Parse JSON from response - try multiple strategies
-  let parsed: ExtractionSchema;
-  try {
-    // Strategy 1: Try parsing the raw response directly
-    parsed = JSON.parse(responseText.trim()) as ExtractionSchema;
-  } catch {
-    // Strategy 2: Extract from markdown code fences
-    const fenceMatch = responseText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-    if (fenceMatch?.[1]) {
-      try {
-        parsed = JSON.parse(fenceMatch[1].trim()) as ExtractionSchema;
-      } catch {
-        // Strategy 3: Find the first { and last } in the response
-        const firstBrace = responseText.indexOf("{");
-        const lastBrace = responseText.lastIndexOf("}");
-        if (firstBrace !== -1 && lastBrace > firstBrace) {
-          parsed = JSON.parse(responseText.slice(firstBrace, lastBrace + 1)) as ExtractionSchema;
-        } else {
-          console.error("[extractor] Could not parse AI response:", responseText.slice(0, 500));
-          throw new Error("AI returned invalid JSON - try a simpler prompt");
-        }
-      }
-    } else {
-      // Strategy 3: Find the first { and last } in the response
-      const firstBrace = responseText.indexOf("{");
-      const lastBrace = responseText.lastIndexOf("}");
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        parsed = JSON.parse(responseText.slice(firstBrace, lastBrace + 1)) as ExtractionSchema;
-      } else {
-        console.error("[extractor] Could not parse AI response:", responseText.slice(0, 500));
-        throw new Error("AI returned invalid JSON - try a simpler prompt");
-      }
-    }
+  console.log("[extractor] AI response length:", responseText.length);
+  console.log("[extractor] AI response preview:", responseText.slice(0, 300));
+
+  // Try to extract JSON from the response using multiple strategies
+  const jsonString = extractJson(responseText);
+  if (!jsonString) {
+    console.error("[extractor] No JSON found in AI response:", responseText.slice(0, 1000));
+    throw new Error("AI returned no extractable JSON");
   }
 
-  // Apply match conditions to find matching items
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(jsonString);
+  } catch (e) {
+    console.error("[extractor] JSON parse failed:", (e as Error).message);
+    console.error("[extractor] Attempted to parse:", jsonString.slice(0, 500));
+    throw new Error("AI returned invalid JSON");
+  }
+
+  // Normalise into our expected schema shape - be lenient about what AI returns
+  const parsed: ExtractionSchema = {
+    fields: (raw.fields as Record<string, string>) ?? {},
+    items: Array.isArray(raw.items) ? raw.items : [],
+    matchConditions: {
+      titleContains: getStringArray(raw.matchConditions, "titleContains"),
+      titleExcludes: getStringArray(raw.matchConditions, "titleExcludes"),
+      priceMax: getNumber(raw.matchConditions, "priceMax"),
+      priceMin: getNumber(raw.matchConditions, "priceMin"),
+      mustInclude: getStringArray(raw.matchConditions, "mustInclude"),
+      mustExclude: getStringArray(raw.matchConditions, "mustExclude"),
+    },
+  };
+
+  console.log("[extractor] Parsed %d items, %d fields", parsed.items.length, Object.keys(parsed.fields).length);
+
   const matches = applyMatchConditions(parsed.items, parsed.matchConditions);
+  console.log("[extractor] Found %d matches out of %d items", matches.length, parsed.items.length);
 
   return { schema: parsed, matches };
+}
+
+/** Try multiple strategies to extract a JSON string from AI response text */
+function extractJson(text: string): string | null {
+  const trimmed = text.trim();
+
+  // Strategy 1: Already valid JSON
+  if (trimmed.startsWith("{")) {
+    return trimmed;
+  }
+
+  // Strategy 2: Extract from markdown code fences (greedy to get the full block)
+  const fenceMatch = trimmed.match(/```(?:json)?\s*\n([\s\S]*)\n\s*```/);
+  if (fenceMatch?.[1]) {
+    return fenceMatch[1].trim();
+  }
+
+  // Strategy 3: Find outermost { } braces
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return null;
+}
+
+function getStringArray(obj: unknown, key: string): string[] | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const val = (obj as Record<string, unknown>)[key];
+  if (Array.isArray(val)) return val.filter((v): v is string => typeof v === "string");
+  return undefined;
+}
+
+function getNumber(obj: unknown, key: string): number | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const val = (obj as Record<string, unknown>)[key];
+  if (typeof val === "number") return val;
+  return undefined;
 }
 
 export function applyMatchConditions(items: ExtractedItem[], conditions: ExtractionSchema["matchConditions"]): ExtractedItem[] {
