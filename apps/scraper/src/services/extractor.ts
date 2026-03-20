@@ -60,9 +60,40 @@ export async function extractWithAI(
 
   const responseText = message.content[0].type === "text" ? message.content[0].text : "";
 
-  // Parse JSON from response (handle markdown code blocks)
-  const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, responseText];
-  const parsed = JSON.parse(jsonMatch[1]!.trim()) as ExtractionSchema;
+  // Parse JSON from response - try multiple strategies
+  let parsed: ExtractionSchema;
+  try {
+    // Strategy 1: Try parsing the raw response directly
+    parsed = JSON.parse(responseText.trim()) as ExtractionSchema;
+  } catch {
+    // Strategy 2: Extract from markdown code fences
+    const fenceMatch = responseText.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+    if (fenceMatch?.[1]) {
+      try {
+        parsed = JSON.parse(fenceMatch[1].trim()) as ExtractionSchema;
+      } catch {
+        // Strategy 3: Find the first { and last } in the response
+        const firstBrace = responseText.indexOf("{");
+        const lastBrace = responseText.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          parsed = JSON.parse(responseText.slice(firstBrace, lastBrace + 1)) as ExtractionSchema;
+        } else {
+          console.error("[extractor] Could not parse AI response:", responseText.slice(0, 500));
+          throw new Error("AI returned invalid JSON - try a simpler prompt");
+        }
+      }
+    } else {
+      // Strategy 3: Find the first { and last } in the response
+      const firstBrace = responseText.indexOf("{");
+      const lastBrace = responseText.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        parsed = JSON.parse(responseText.slice(firstBrace, lastBrace + 1)) as ExtractionSchema;
+      } else {
+        console.error("[extractor] Could not parse AI response:", responseText.slice(0, 500));
+        throw new Error("AI returned invalid JSON - try a simpler prompt");
+      }
+    }
+  }
 
   // Apply match conditions to find matching items
   const matches = applyMatchConditions(parsed.items, parsed.matchConditions);
