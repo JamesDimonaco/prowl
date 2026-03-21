@@ -120,6 +120,32 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         const matchCount = json.matches?.length ?? 0;
         const totalItems = json.totalItems ?? json.schema?.items?.length ?? 0;
         const insights = json.schema?.insights;
+        const confidence = insights?.confidence ?? 100;
+
+        // If the AI reports 0% confidence or found no items, the page is likely
+        // inaccessible (blocked, access denied, CAPTCHA, etc.)
+        if (confidence <= 10 && totalItems === 0) {
+          const reason = insights?.notices?.[0] ?? "Page appears inaccessible - no data could be extracted";
+
+          await saveScanError({ id: monitorId, error: reason });
+
+          await createLog({
+            monitorId,
+            monitorName: data.name,
+            url: data.url,
+            prompt: data.prompt,
+            status: "error",
+            durationMs,
+            error: reason,
+            rawResponse: JSON.stringify(json).slice(0, 50000),
+            aiConfidence: confidence,
+            aiUnderstanding: insights?.understanding,
+            aiNotices: insights?.notices,
+          });
+
+          toast.error("Page inaccessible", { description: reason });
+          return;
+        }
 
         await saveScanResult({
           id: monitorId,

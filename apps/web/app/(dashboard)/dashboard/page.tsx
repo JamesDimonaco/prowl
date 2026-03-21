@@ -48,27 +48,35 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error(json.error || json.message || "Failed");
 
       const matchCount = json.matches?.length ?? 0;
+      const totalItems = json.totalItems ?? 0;
       const insights = json.schema?.insights;
+      const confidence = insights?.confidence ?? 100;
+
+      // Page inaccessible check
+      if (confidence <= 10 && totalItems === 0) {
+        const reason = insights?.notices?.[0] ?? "Page appears inaccessible";
+        await saveScanError({ id: monitorId, error: reason });
+        await createLog({
+          monitorId, monitorName: monitor.name, url: monitor.url, prompt: monitor.prompt,
+          status: "error" as const, durationMs, error: reason,
+          rawResponse: JSON.stringify(json).slice(0, 50000),
+          aiConfidence: confidence, aiUnderstanding: insights?.understanding, aiNotices: insights?.notices,
+        });
+        toast.error("Page inaccessible", { description: reason });
+        return;
+      }
+
       await saveScanResult({ id: monitorId, schema: json.schema, matchCount });
       await createLog({
-        monitorId,
-        monitorName: monitor.name,
-        url: monitor.url,
-        prompt: monitor.prompt,
-        status: "success" as const,
-        durationMs,
-        itemCount: json.totalItems,
-        matchCount,
+        monitorId, monitorName: monitor.name, url: monitor.url, prompt: monitor.prompt,
+        status: "success" as const, durationMs, itemCount: totalItems, matchCount,
         rawResponse: JSON.stringify(json).slice(0, 50000),
-        aiConfidence: insights?.confidence,
-        aiUnderstanding: insights?.understanding,
-        aiMatchSignal: insights?.matchSignal,
-        aiNoMatchSignal: insights?.noMatchSignal,
-        aiNotices: insights?.notices,
-        matchConditions: json.schema?.matchConditions,
+        aiConfidence: insights?.confidence, aiUnderstanding: insights?.understanding,
+        aiMatchSignal: insights?.matchSignal, aiNoMatchSignal: insights?.noMatchSignal,
+        aiNotices: insights?.notices, matchConditions: json.schema?.matchConditions,
       });
       toast.success("Rescan complete", {
-        description: `${json.totalItems} items, ${matchCount} matches`,
+        description: `${totalItems} items, ${matchCount} matches`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rescan failed";
