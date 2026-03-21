@@ -11,7 +11,7 @@ WORKDIR /app
 # Enable corepack for pnpm
 RUN corepack enable
 
-# Copy monorepo root files
+# Copy monorepo root files for workspace resolution
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/scraper/package.json apps/scraper/
 COPY apps/scraper/tsup.config.ts apps/scraper/
@@ -24,15 +24,16 @@ RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 COPY packages/shared/ packages/shared/
 COPY apps/scraper/ apps/scraper/
 
-# Build
+# Build (bundles @prowl/shared into dist)
 RUN cd apps/scraper && pnpm build
 
-EXPOSE 3001
-
-ENV PORT=3001
 ENV NODE_ENV=production
 
+# Don't hardcode PORT - let Railway set it (defaults to 8080)
+# The scraper reads process.env.PORT and falls back to 3001
+EXPOSE ${PORT:-8080}
+
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+  CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
 CMD ["node", "apps/scraper/dist/index.js"]
