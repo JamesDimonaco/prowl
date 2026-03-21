@@ -157,7 +157,7 @@ export const saveScanResult = mutation({
     const now = Date.now();
     await ctx.db.patch(id, {
       schema,
-      status: matchCount > 0 ? "matched" : "active",
+      status: "active",
       matchCount,
       lastCheckedAt: now,
       lastMatchAt: matchCount > 0 ? now : undefined,
