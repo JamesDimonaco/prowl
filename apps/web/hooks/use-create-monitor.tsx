@@ -89,6 +89,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
 
       const startTime = Date.now();
 
+      let alreadyLogged = false;
       try {
         const res = await fetch("/api/scraper/extract", {
           method: "POST",
@@ -113,6 +114,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
             error: errorMsg,
             rawResponse: JSON.stringify(json).slice(0, 10000),
           });
+          alreadyLogged = true;
 
           throw new Error(errorMsg);
         }
@@ -169,7 +171,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
           aiNoMatchSignal: insights?.noMatchSignal,
           aiNotices: insights?.notices,
           matchConditions: json.schema?.matchConditions,
-        });
+        }).catch(() => {});
 
         toast.success("Scan complete", {
           description: `${totalItems} items found, ${matchCount} match${matchCount !== 1 ? "es" : ""}`,
@@ -181,14 +183,16 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
 
         await saveScanError({ id: monitorId, error: msg }).catch(() => {});
 
-        await createLog({
-          monitorId,
-          url: data.url,
-          prompt: data.prompt,
-          status: msg.includes("timed out") || msg.includes("Timeout") || msg.includes("Failed to reach") ? "timeout" : "error",
-          durationMs,
-          error: msg,
-        }).catch(() => {});
+        if (!alreadyLogged) {
+          await createLog({
+            monitorId,
+            url: data.url,
+            prompt: data.prompt,
+            status: msg.includes("timed out") || msg.includes("Timeout") || msg.includes("Failed to reach") ? "timeout" : "error",
+            durationMs,
+            error: msg,
+          }).catch(() => {});
+        }
 
         toast.error("Scan failed", { description: msg });
       } finally {

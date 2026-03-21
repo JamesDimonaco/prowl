@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     try {
       data = JSON.parse(text);
     } catch {
-      return new NextResponse(text, { status: res.status, headers: { "Content-Type": "text/plain" } });
+      return NextResponse.json({ error: text }, { status: res.status });
     }
 
     if (!res.ok) {

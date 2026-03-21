@@ -32,11 +32,12 @@ export default function DashboardPage() {
     const monitor = monitors.find((m) => m._id === monitorId);
     if (!monitor) return;
 
-    // Set status to scanning so the badge updates immediately
-    await updateMonitor(monitorId, { status: "scanning" as "active" }); // "scanning" in Convex schema, types regenerate with npx convex dev
     const startTime = Date.now();
 
     try {
+      // Set status to scanning so the badge updates immediately
+      await updateMonitor(monitorId, { status: "scanning" as "active" }); // "scanning" in Convex schema, types regenerate with npx convex dev
+
       const res = await fetch("/api/scraper/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,7 +75,7 @@ export default function DashboardPage() {
         aiConfidence: insights?.confidence, aiUnderstanding: insights?.understanding,
         aiMatchSignal: insights?.matchSignal, aiNoMatchSignal: insights?.noMatchSignal,
         aiNotices: insights?.notices, matchConditions: json.schema?.matchConditions,
-      });
+      }).catch(() => {});
       toast.success("Rescan complete", {
         description: `${totalItems} items, ${matchCount} matches`,
       });
@@ -84,6 +85,7 @@ export default function DashboardPage() {
       await saveScanError({ id: monitorId, error: msg }).catch(() => {});
       await createLog({
         monitorId,
+        monitorName: monitor.name,
         url: monitor.url,
         prompt: monitor.prompt,
         status: "error" as const,

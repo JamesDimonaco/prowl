@@ -38,11 +38,13 @@ export const list = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
+    const safeLimit = Math.min(Math.max(Math.floor(limit ?? 50), 1), 100);
+
     return ctx.db
       .query("scrapeLogs")
       .withIndex("by_userId", (q) => q.eq("userId", identity.subject))
       .order("desc")
-      .take(limit ?? 50);
+      .take(safeLimit);
   },
 });
 
