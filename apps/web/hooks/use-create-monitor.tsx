@@ -47,6 +47,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
   const saveScanError = useMutation(api.monitors.saveScanError);
   const removeMutation = useMutation(api.monitors.remove);
   const createLog = useMutation(api.logs.create);
+  const createLog = useMutation(api.logs.create);
 
   const open = useCallback(() => {
     if (!isScanning) {
@@ -89,15 +90,19 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
 
       const startTime = Date.now();
 
+      const startTime = Date.now();
+
       try {
         const res = await fetch("/api/scraper/extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: data.url, prompt: data.prompt, name: data.name }),
+          body: JSON.stringify({ url: data.url, prompt: data.prompt, name: data.name }),
           signal: controller.signal,
         });
 
         const json = await res.json();
+        const durationMs = Date.now() - startTime;
         const durationMs = Date.now() - startTime;
 
         if (!res.ok) {
@@ -116,10 +121,29 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
           });
 
           throw new Error(errorMsg);
+          const errorMsg = json.error || json.message || "Extraction failed";
+
+          // Log the error with whatever data we got
+          await createLog({
+            monitorId,
+            monitorName: data.name,
+            url: data.url,
+            prompt: data.prompt,
+            status: res.status === 502 || res.status === 504 ? "timeout" : "error",
+            durationMs,
+            error: errorMsg,
+            rawResponse: JSON.stringify(json).slice(0, 10000),
+          });
+
+          throw new Error(errorMsg);
         }
 
         // Success - save results and log everything
+        // Success - save results and log everything
         const matchCount = json.matches?.length ?? 0;
+        const totalItems = json.totalItems ?? json.schema?.items?.length ?? 0;
+        const insights = json.schema?.insights;
+
         const totalItems = json.totalItems ?? json.schema?.items?.length ?? 0;
         const insights = json.schema?.insights;
 
@@ -147,12 +171,45 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
           matchConditions: json.schema?.matchConditions,
         });
 
+        await createLog({
+          monitorId,
+          monitorName: data.name,
+          url: data.url,
+          prompt: data.prompt,
+          status: "success",
+          durationMs,
+          itemCount: totalItems,
+          matchCount,
+          rawResponse: JSON.stringify(json).slice(0, 50000),
+          aiConfidence: insights?.confidence,
+          aiUnderstanding: insights?.understanding,
+          aiMatchSignal: insights?.matchSignal,
+          aiNoMatchSignal: insights?.noMatchSignal,
+          aiNotices: insights?.notices,
+          matchConditions: json.schema?.matchConditions,
+        });
+
         toast.success("Scan complete", {
+          description: `${totalItems} items found, ${matchCount} match${matchCount !== 1 ? "es" : ""}`,
           description: `${totalItems} items found, ${matchCount} match${matchCount !== 1 ? "es" : ""}`,
         });
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
         const msg = e instanceof Error ? e.message : "Scan failed";
+        const durationMs = Date.now() - startTime;
+
+        await saveScanError({ id: monitorId, error: msg }).catch(() => {});
+
+        // Always log failures
+        await createLog({
+          monitorId,
+          url: data.url,
+          prompt: data.prompt,
+          status: msg.includes("timed out") || msg.includes("Timeout") || msg.includes("Failed to reach") ? "timeout" : "error",
+          durationMs,
+          error: msg,
+        }).catch(() => {});
+
         const durationMs = Date.now() - startTime;
 
         await saveScanError({ id: monitorId, error: msg }).catch(() => {});
@@ -174,6 +231,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
       }
     },
     [createMutation, saveScanResult, saveScanError, createLog]
+    [createMutation, saveScanResult, saveScanError, createLog]
   );
 
   const cancelScan = useCallback(async () => {
@@ -181,6 +239,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
     if (activeMonitorId) {
       try {
         await removeMutation({ id: activeMonitorId });
+      } catch { /* */ }
       } catch { /* */ }
     }
     setActiveMonitorId(null);

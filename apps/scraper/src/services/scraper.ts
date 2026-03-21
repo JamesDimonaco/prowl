@@ -176,12 +176,14 @@ async function getTextWithLinks(page: Page): Promise<string> {
       const href = a.getAttribute("href");
       const text = a.textContent?.trim();
       if (!href || !text) return;
+
       if (!href.trim() || href.trim() === "#") return;
       try {
         const parsed = new URL(href, document.location.href);
         if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
         a.textContent = `[${text}](${parsed.href})`;
       } catch {
+
         return;
       }
     });
