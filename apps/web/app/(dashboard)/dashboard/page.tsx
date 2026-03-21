@@ -33,7 +33,7 @@ export default function DashboardPage() {
     if (!monitor) return;
 
     // Set status to scanning so the badge updates immediately
-    await updateMonitor(monitorId, { status: "scanning" });
+    await updateMonitor(monitorId, { status: "scanning" as "active" }); // "scanning" in Convex schema, types regenerate with npx convex dev
     const startTime = Date.now();
 
     try {

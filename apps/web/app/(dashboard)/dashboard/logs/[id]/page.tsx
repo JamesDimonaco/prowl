@@ -3,6 +3,18 @@
 import { use, useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+
+// Extended log type until Convex regenerates types with new fields
+interface LogExtended {
+  monitorName?: string;
+  aiConfidence?: number;
+  aiUnderstanding?: string;
+  aiMatchSignal?: string;
+  aiNoMatchSignal?: string;
+  aiNotices?: string[];
+  matchConditions?: unknown;
+  [key: string]: unknown;
+}
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +45,8 @@ export default function LogDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const log = useQuery(api.logs.get, { id: id as Id<"scrapeLogs"> });
+  const rawLog = useQuery(api.logs.get, { id: id as Id<"scrapeLogs"> });
+  const log = rawLog as (typeof rawLog & LogExtended) | null | undefined;
   const [showRaw, setShowRaw] = useState(false);
   const { open: openCreate } = useCreateMonitor();
   const router = useRouter();
@@ -140,12 +153,12 @@ export default function LogDetailPage({
             </CardContent>
           </Card>
         </div>
-        {(log as Record<string, unknown>).monitorName && (
+        {log.monitorName && (
           <div>
             <h2 className="text-lg font-bold tracking-tight mb-3">Monitor Name</h2>
             <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
               <CardContent className="p-5">
-                <p className="text-sm font-medium">{String((log as Record<string, unknown>).monitorName)}</p>
+                <p className="text-sm font-medium">{log.monitorName}</p>
               </CardContent>
             </Card>
           </div>
@@ -153,7 +166,7 @@ export default function LogDetailPage({
       </div>
 
       {/* AI Insights */}
-      {(log as Record<string, unknown>).aiUnderstanding && (
+      {log.aiUnderstanding && (
         <div>
           <h2 className="text-lg font-bold tracking-tight mb-3">AI Insights</h2>
           <div className="space-y-3">
@@ -161,41 +174,41 @@ export default function LogDetailPage({
               <CardContent className="p-5 space-y-4">
                 <div className="flex items-center gap-3">
                   <p className="text-sm font-semibold">Understanding</p>
-                  {(log as Record<string, unknown>).aiConfidence != null && (
+                  {log.aiConfidence != null && (
                     <Badge variant="outline" className={`text-xs ${
-                      Number((log as Record<string, unknown>).aiConfidence) >= 80
+                      (log.aiConfidence ?? 0) >= 80
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                        : Number((log as Record<string, unknown>).aiConfidence) >= 50
+                        : (log.aiConfidence ?? 0) >= 50
                           ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                           : "bg-red-500/10 text-red-400 border-red-500/20"
                     }`}>
-                      {String((log as Record<string, unknown>).aiConfidence)}% confidence
+                      {log.aiConfidence}% confidence
                     </Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  {String((log as Record<string, unknown>).aiUnderstanding)}
+                  {log.aiUnderstanding}
                 </p>
 
-                {(log as Record<string, unknown>).aiMatchSignal && (
+                {log.aiMatchSignal && (
                   <div className="grid gap-3 md:grid-cols-2 pt-2">
                     <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/10 p-3">
                       <p className="text-xs font-semibold text-emerald-400 mb-1">Match signal</p>
-                      <p className="text-xs text-muted-foreground">{String((log as Record<string, unknown>).aiMatchSignal)}</p>
+                      <p className="text-xs text-muted-foreground">{log.aiMatchSignal}</p>
                     </div>
                     <div className="rounded-lg bg-muted/30 border border-border/30 p-3">
                       <p className="text-xs font-semibold text-muted-foreground mb-1">No match signal</p>
-                      <p className="text-xs text-muted-foreground">{String((log as Record<string, unknown>).aiNoMatchSignal)}</p>
+                      <p className="text-xs text-muted-foreground">{log.aiNoMatchSignal}</p>
                     </div>
                   </div>
                 )}
 
-                {Array.isArray((log as Record<string, unknown>).aiNotices) &&
-                  ((log as Record<string, unknown>).aiNotices as string[]).length > 0 && (
+                {Array.isArray(log.aiNotices) &&
+                  (log.aiNotices as string[]).length > 0 && (
                   <div className="rounded-lg bg-amber-500/5 border border-amber-500/10 p-3 mt-2">
                     <p className="text-xs font-semibold text-amber-400 mb-2">Notices</p>
                     <ul className="space-y-1">
-                      {((log as Record<string, unknown>).aiNotices as string[]).map((n, i) => (
+                      {(log.aiNotices as string[]).map((n, i) => (
                         <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
                           <span className="text-amber-400 shrink-0">•</span>
                           {n}
@@ -211,13 +224,13 @@ export default function LogDetailPage({
       )}
 
       {/* Match Conditions */}
-      {(log as Record<string, unknown>).matchConditions && (
+      {log.matchConditions && (
         <div>
           <h2 className="text-lg font-bold tracking-tight mb-3">Generated Match Conditions</h2>
           <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
             <CardContent className="p-5">
               <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-                {JSON.stringify((log as Record<string, unknown>).matchConditions, null, 2)}
+                {JSON.stringify(log.matchConditions, null, 2)}
               </pre>
             </CardContent>
           </Card>

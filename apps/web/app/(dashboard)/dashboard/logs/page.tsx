@@ -83,8 +83,8 @@ export default function LogsPage() {
                             <span>{formatDuration(log.durationMs)}</span>
                             {log.itemCount != null && <span>{log.itemCount} items</span>}
                             {log.matchCount != null && <span>{log.matchCount} matches</span>}
-                            {(log as Record<string, unknown>).aiConfidence != null && (
-                              <span>{String((log as Record<string, unknown>).aiConfidence)}% confidence</span>
+                            {(log as unknown as { aiConfidence?: number }).aiConfidence != null && (
+                              <span>{(log as unknown as { aiConfidence?: number }).aiConfidence}% confidence</span>
                             )}
                             {log.error && (
                               <span className="text-red-400 truncate max-w-xs">{log.error}</span>

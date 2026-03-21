@@ -78,11 +78,6 @@ export default function MonitorDetailPage({
   }
 
   const matchesBeforeBlacklist = allItems.length > 0 ? applyMatchConditions(allItems, conditions) : [];
-
-  function getItemKey(item: ExtractedItem): string {
-    return String(item.title ?? item.name ?? "");
-  }
-
   const matches = matchesBeforeBlacklist.filter(
     (item) => !blacklist.includes(getItemKey(item))
   );
