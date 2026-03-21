@@ -29,7 +29,7 @@ import {
   XCircle,
   AlertTriangle,
 } from "lucide-react";
-import { useScraper } from "@/hooks/use-scraper";
+import type { useScraper } from "@/hooks/use-scraper";
 import { MatchConditionsEditor } from "./match-conditions-editor";
 import { applyMatchConditions } from "@prowl/shared";
 import type { MatchConditions, ExtractedItem, ExtractionSchema } from "@prowl/shared";
@@ -48,12 +48,14 @@ interface CreateMonitorSheetProps {
     schema: ExtractionSchema;
     initialMatchCount: number;
   }) => void;
+  scraper: ReturnType<typeof useScraper>;
 }
 
 export function CreateMonitorSheet({
   open,
   onOpenChange,
   onCreated,
+  scraper,
 }: CreateMonitorSheetProps) {
   const [step, setStep] = useState<Step>("form");
   const [name, setName] = useState("");
@@ -68,8 +70,6 @@ export function CreateMonitorSheet({
 
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const scraper = useScraper();
 
   // Elapsed timer during scanning
   useEffect(() => {

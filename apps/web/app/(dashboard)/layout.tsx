@@ -2,6 +2,7 @@
 
 import { Navbar } from "@/components/prowl/navbar";
 import { useAuth } from "@/hooks/use-auth";
+import { CreateMonitorProvider } from "@/hooks/use-create-monitor";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -31,11 +32,13 @@ export default function DashboardLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Navbar />
-      <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-6 py-10">{children}</div>
-      </main>
-    </div>
+    <CreateMonitorProvider>
+      <div className="flex min-h-screen flex-col">
+        <Navbar />
+        <main className="flex-1">
+          <div className="mx-auto max-w-7xl px-6 py-10">{children}</div>
+        </main>
+      </div>
+    </CreateMonitorProvider>
   );
 }
