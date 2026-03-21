@@ -146,19 +146,17 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         const msg = e instanceof Error ? e.message : "Scan failed";
         const durationMs = Date.now() - startTime;
 
-        await saveScanError({ id: monitorId, error: msg });
+        await saveScanError({ id: monitorId, error: msg }).catch(() => {});
 
-        // Log if not already logged above
-        if (!msg.includes("Extraction failed")) {
-          await createLog({
-            monitorId,
-            url: data.url,
-            prompt: data.prompt,
-            status: msg.includes("timed out") || msg.includes("Timeout") ? "timeout" : "error",
-            durationMs,
-            error: msg,
-          }).catch(() => {});
-        }
+        // Always log failures
+        await createLog({
+          monitorId,
+          url: data.url,
+          prompt: data.prompt,
+          status: msg.includes("timed out") || msg.includes("Timeout") || msg.includes("Failed to reach") ? "timeout" : "error",
+          durationMs,
+          error: msg,
+        }).catch(() => {});
 
         toast.error("Scan failed", { description: msg });
       } finally {
