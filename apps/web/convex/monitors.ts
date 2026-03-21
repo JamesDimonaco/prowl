@@ -182,30 +182,16 @@ export const saveScanError = mutation({
     const userId = await getAuthUserId(ctx);
     const monitor = await ctx.db.get(id);
     if (!monitor || monitor.userId !== userId) throw new Error("Monitor not found");
-    if (monitor.status !== "scanning") return;
 
-    const retryCount = (monitor.retryCount ?? 0) + 1;
-    const now = Date.now();
+    // For initial scans (status "scanning") always go straight to error
+    // For scheduled checks (status "active") the scheduler handles retries
+    if (monitor.status !== "scanning" && monitor.status !== "active") return;
 
-    if (retryCount >= MAX_RETRIES) {
-      // Max retries exhausted — mark as error, stop scheduling
-      await ctx.db.patch(id, {
-        status: "error",
-        lastError: error,
-        retryCount,
-        nextCheckAt: undefined,
-        updatedAt: now,
-      });
-    } else {
-      // Retry with exponential backoff: 2min, 8min, 32min
-      const backoffMs = Math.pow(4, retryCount) * 30_000;
-      await ctx.db.patch(id, {
-        lastError: error,
-        retryCount,
-        nextCheckAt: now + backoffMs,
-        updatedAt: now,
-      });
-    }
+    await ctx.db.patch(id, {
+      status: "error",
+      lastError: error,
+      updatedAt: Date.now(),
+    });
   },
 });
 
