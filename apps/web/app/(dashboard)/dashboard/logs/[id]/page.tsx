@@ -15,8 +15,11 @@ import {
   AlertTriangle,
   Code,
   Eye,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import type { Id } from "@/convex/_generated/dataModel";
 
 function formatDuration(ms: number): string {
@@ -32,6 +35,8 @@ export default function LogDetailPage({
   const { id } = use(params);
   const log = useQuery(api.logs.get, { id: id as Id<"scrapeLogs"> });
   const [showRaw, setShowRaw] = useState(false);
+  const { open: openCreate } = useCreateMonitor();
+  const router = useRouter();
 
   if (log === undefined) {
     return (
@@ -138,7 +143,23 @@ export default function LogDetailPage({
       {/* Error */}
       {log.error && (
         <div>
-          <h2 className="text-lg font-bold tracking-tight mb-3 text-red-400">Error</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold tracking-tight text-red-400">Error</h2>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                if (log.monitorId) {
+                  router.push(`/dashboard/monitors/${log.monitorId}`);
+                } else {
+                  openCreate();
+                }
+              }}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {log.monitorId ? "View Monitor" : "Retry"}
+            </Button>
+          </div>
           <Card className="border-red-500/20 bg-red-500/5 shadow-sm shadow-black/5">
             <CardContent className="p-5">
               <p className="text-sm font-mono text-red-400">{log.error}</p>
