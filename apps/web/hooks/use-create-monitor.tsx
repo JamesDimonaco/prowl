@@ -15,15 +15,10 @@ import { CreateMonitorSheet } from "@/components/prowl/create-monitor-sheet";
 import { toast } from "sonner";
 
 interface CreateMonitorContextValue {
-  /** Open the create monitor sheet */
   open: () => void;
-  /** Resume viewing a scanning/completed monitor */
   resume: (monitorId: Id<"monitors">) => void;
-  /** The monitor ID currently being created/scanned */
   activeMonitorId: Id<"monitors"> | null;
-  /** Whether a scan is in progress */
   isScanning: boolean;
-  /** Whether the sheet is open */
   isOpen: boolean;
 }
 
@@ -50,9 +45,9 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
   const removeMutation = useMutation(api.monitors.remove);
+  const createLog = useMutation(api.logs.create);
 
   const open = useCallback(() => {
-    // Only open fresh if not already scanning
     if (!isScanning) {
       setActiveMonitorId(null);
     }
@@ -64,7 +59,6 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
     setSheetOpen(true);
   }, []);
 
-  /** Called by the sheet when user submits the form. Creates monitor and starts scan. */
   const startScan = useCallback(
     async (data: {
       name: string;
@@ -72,15 +66,15 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
       prompt: string;
       checkInterval: "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
     }) => {
-      // 1. Create monitor in DB immediately with status "scanning"
       const monitorId = await createMutation(data);
       setActiveMonitorId(monitorId);
       setIsScanning(true);
 
-      // 2. Fire off the scan in the background
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+
+      const startTime = Date.now();
 
       try {
         const res = await fetch("/api/scraper/extract", {
@@ -91,50 +85,88 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         });
 
         const json = await res.json();
+        const durationMs = Date.now() - startTime;
 
         if (!res.ok) {
-          throw new Error(json.error || json.message || "Extraction failed");
+          const errorMsg = json.error || json.message || "Extraction failed";
+
+          // Log the error
+          await createLog({
+            monitorId,
+            url: data.url,
+            prompt: data.prompt,
+            status: res.status === 502 || res.status === 504 ? "timeout" : "error",
+            durationMs,
+            error: errorMsg,
+            rawResponse: JSON.stringify(json).slice(0, 10000),
+          });
+
+          throw new Error(errorMsg);
         }
 
-        // 3. Save results to DB
+        // Success - save results and log
         const matchCount = json.matches?.length ?? 0;
+        const totalItems = json.totalItems ?? json.schema?.items?.length ?? 0;
+
         await saveScanResult({
           id: monitorId,
           schema: json.schema,
           matchCount,
         });
 
+        await createLog({
+          monitorId,
+          url: data.url,
+          prompt: data.prompt,
+          status: "success",
+          durationMs,
+          itemCount: totalItems,
+          matchCount,
+          rawResponse: JSON.stringify(json).slice(0, 50000),
+        });
+
         toast.success("Scan complete", {
-          description: `${json.totalItems} items found, ${matchCount} match${matchCount !== 1 ? "es" : ""}`,
+          description: `${totalItems} items found, ${matchCount} match${matchCount !== 1 ? "es" : ""}`,
         });
       } catch (e) {
         if (e instanceof Error && e.name === "AbortError") return;
         const msg = e instanceof Error ? e.message : "Scan failed";
+        const durationMs = Date.now() - startTime;
+
         await saveScanError({ id: monitorId, error: msg });
+
+        // Log if not already logged above
+        if (!msg.includes("Extraction failed")) {
+          await createLog({
+            monitorId,
+            url: data.url,
+            prompt: data.prompt,
+            status: msg.includes("timed out") || msg.includes("Timeout") ? "timeout" : "error",
+            durationMs,
+            error: msg,
+          }).catch(() => {});
+        }
+
         toast.error("Scan failed", { description: msg });
       } finally {
         setIsScanning(false);
       }
     },
-    [createMutation, saveScanResult, saveScanError]
+    [createMutation, saveScanResult, saveScanError, createLog]
   );
 
-  /** Cancel the active scan and delete the monitor */
   const cancelScan = useCallback(async () => {
     abortRef.current?.abort();
     if (activeMonitorId) {
       try {
         await removeMutation({ id: activeMonitorId });
-      } catch {
-        // Monitor might already be gone
-      }
+      } catch { /* */ }
     }
     setActiveMonitorId(null);
     setIsScanning(false);
     setSheetOpen(false);
   }, [activeMonitorId, removeMutation]);
 
-  /** User confirmed the monitor (after reviewing results). Just close the sheet. */
   const confirmMonitor = useCallback(() => {
     setActiveMonitorId(null);
     setSheetOpen(false);

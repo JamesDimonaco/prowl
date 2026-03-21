@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthenticated } from "@/lib/auth-server";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   // Verify the caller has a valid session before proxying to the scraper
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         "x-api-key": scraperKey,
       },
       body: JSON.stringify({ url: body.url, prompt: body.prompt }),
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(110000),
     });
 
     const data = await res.json();
