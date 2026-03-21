@@ -45,7 +45,13 @@ export async function POST(request: Request) {
       signal: AbortSignal.timeout(55000),
     });
 
-    const data = await res.json();
+    let data: unknown;
+    try {
+      data = await res.json();
+    } catch {
+      const text = await res.text();
+      return new NextResponse(text, { status: res.status, headers: { "Content-Type": "text/plain" } });
+    }
 
     if (!res.ok) {
       return NextResponse.json(data, { status: res.status });

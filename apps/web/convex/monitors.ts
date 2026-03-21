@@ -153,6 +153,7 @@ export const saveScanResult = mutation({
     const userId = await getAuthUserId(ctx);
     const monitor = await ctx.db.get(id);
     if (!monitor || monitor.userId !== userId) throw new Error("Monitor not found");
+    if (monitor.status !== "scanning") return;
 
     const now = Date.now();
     await ctx.db.patch(id, {
@@ -176,6 +177,7 @@ export const saveScanError = mutation({
     const userId = await getAuthUserId(ctx);
     const monitor = await ctx.db.get(id);
     if (!monitor || monitor.userId !== userId) throw new Error("Monitor not found");
+    if (monitor.status !== "scanning") return;
 
     await ctx.db.patch(id, {
       status: "error",

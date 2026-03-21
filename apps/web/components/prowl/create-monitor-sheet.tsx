@@ -37,6 +37,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { MatchConditions, ExtractedItem, ExtractionSchema } from "@prowl/shared";
+import { toast } from "sonner";
 
 type CheckInterval = "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
 
@@ -84,7 +85,7 @@ export function CreateMonitorSheet({
   // Determine step from state
   const step = !activeMonitorId
     ? "form"
-    : isScanning || monitor?.status === "scanning"
+    : (isScanning || monitor?.status === "scanning" || monitor?.status === "error")
       ? "scanning"
       : "preview";
 
@@ -125,14 +126,18 @@ export function CreateMonitorSheet({
 
   async function handleConfirm() {
     // Save edited conditions back to the monitor if changed
-    if (activeMonitorId && editedConditions && schema) {
-      await updateMutation({
-        id: activeMonitorId,
-        schema: { ...schema, matchConditions: editedConditions },
-      });
+    try {
+      if (activeMonitorId && editedConditions && schema) {
+        await updateMutation({
+          id: activeMonitorId,
+          schema: { ...schema, matchConditions: editedConditions },
+        });
+      }
+      resetForm();
+      onConfirm();
+    } catch {
+      toast.error("Failed to save filter changes");
     }
-    resetForm();
-    onConfirm();
   }
 
   // Floating indicator when scanning in background
@@ -377,8 +382,8 @@ export function CreateMonitorSheet({
                     Looks Good
                   </Button>
                   <Button
-                    onClick={() => {
-                      handleConfirm();
+                    onClick={async () => {
+                      await handleConfirm();
                       if (activeMonitorId) {
                         router.push(`/dashboard/monitors/${activeMonitorId}`);
                       }

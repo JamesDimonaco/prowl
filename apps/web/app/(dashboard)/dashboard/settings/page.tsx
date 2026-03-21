@@ -35,6 +35,7 @@ export default function SettingsPage() {
   const [telegramChatId, setTelegramChatId] = useState("");
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const deleteAccountMutation = useMutation(api.account.deleteAccount);
 
   return (
@@ -116,22 +117,26 @@ export default function SettingsPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <Button variant="ghost" onClick={() => setDeleteOpen(false)}>
+                    <Button variant="ghost" onClick={() => setDeleteOpen(false)} disabled={isDeleting}>
                       Cancel
                     </Button>
                     <Button
                       variant="destructive"
+                      disabled={isDeleting}
                       onClick={async () => {
+                        setIsDeleting(true);
                         try {
                           await deleteAccountMutation();
                           toast.success("Account deleted");
                           signOut();
                         } catch {
                           toast.error("Failed to delete account");
+                        } finally {
+                          setIsDeleting(false);
                         }
                       }}
                     >
-                      Delete everything
+                      {isDeleting ? "Deleting..." : "Delete everything"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>

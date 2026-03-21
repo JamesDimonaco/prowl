@@ -6,10 +6,11 @@ export function applyMatchConditions(
 ): ExtractedItem[] {
   return items.filter((item) => {
     const title = String(item.title || "").toLowerCase();
-    const price =
+    const rawPrice =
       typeof item.price === "number"
         ? item.price
-        : parseFloat(String(item.price || "0"));
+        : parseFloat(String(item.price ?? ""));
+    const price = Number.isFinite(rawPrice) ? rawPrice : undefined;
 
     if (conditions.titleContains?.length) {
       const hasAll = conditions.titleContains.every((kw) =>
@@ -25,10 +26,12 @@ export function applyMatchConditions(
       if (hasExcluded) return false;
     }
 
-    if (conditions.priceMax !== undefined && price > conditions.priceMax)
-      return false;
-    if (conditions.priceMin !== undefined && price < conditions.priceMin)
-      return false;
+    if (price !== undefined) {
+      if (conditions.priceMax !== undefined && price > conditions.priceMax)
+        return false;
+      if (conditions.priceMin !== undefined && price < conditions.priceMin)
+        return false;
+    }
 
     if (conditions.mustInclude?.length) {
       const itemStr = JSON.stringify(item).toLowerCase();

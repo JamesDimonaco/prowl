@@ -177,7 +177,9 @@ async function getTextWithLinks(page: Page): Promise<string> {
         // Make absolute URL
         let fullUrl = href;
         try {
-          fullUrl = new URL(href, document.location.href).href;
+          const parsed = new URL(href, document.location.href);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+          fullUrl = parsed.href;
         } catch { /* keep relative */ }
         a.textContent = `[${text}](${fullUrl})`;
       }

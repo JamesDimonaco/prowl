@@ -62,12 +62,16 @@ export async function extractWithAI(
   const responseText = message.content[0].type === "text" ? message.content[0].text : "";
 
   console.log("[extractor] AI response length:", responseText.length);
-  console.log("[extractor] AI response preview:", responseText.slice(0, 300));
+  if (process.env.DEBUG === "true") {
+    console.log("[extractor] AI response preview:", responseText.slice(0, 300));
+  }
 
   // Try to extract JSON from the response using multiple strategies
   const jsonString = extractJson(responseText);
   if (!jsonString) {
-    console.error("[extractor] No JSON found in AI response:", responseText.slice(0, 1000));
+    if (process.env.DEBUG === "true") {
+      console.error("[extractor] No JSON found in AI response:", responseText.slice(0, 1000));
+    }
     throw new Error("AI returned no extractable JSON");
   }
 
@@ -84,14 +88,18 @@ export async function extractWithAI(
         console.log("[extractor] Truncation repair succeeded");
       } catch (e2) {
         console.error("[extractor] Repair also failed:", (e2 as Error).message);
-        console.error("[extractor] First 500 chars:", jsonString.slice(0, 500));
-        console.error("[extractor] Last 200 chars:", jsonString.slice(-200));
+        if (process.env.DEBUG === "true") {
+          console.error("[extractor] First 500 chars:", jsonString.slice(0, 500));
+          console.error("[extractor] Last 200 chars:", jsonString.slice(-200));
+        }
         throw new Error("AI returned invalid JSON");
       }
     } else {
       console.error("[extractor] Could not repair truncated JSON");
-      console.error("[extractor] First 500 chars:", jsonString.slice(0, 500));
-      console.error("[extractor] Last 200 chars:", jsonString.slice(-200));
+      if (process.env.DEBUG === "true") {
+        console.error("[extractor] First 500 chars:", jsonString.slice(0, 500));
+        console.error("[extractor] Last 200 chars:", jsonString.slice(-200));
+      }
       throw new Error("AI returned invalid JSON");
     }
   }
@@ -99,7 +107,7 @@ export async function extractWithAI(
   // Normalise into our expected schema shape - be lenient about what AI returns
   const parsed: ExtractionSchema = {
     fields: (raw.fields as Record<string, string>) ?? {},
-    items: Array.isArray(raw.items) ? raw.items : [],
+    items: Array.isArray(raw.items) ? raw.items.filter((i): i is ExtractedItem => i != null && typeof i === "object").slice(0, 50) : [],
     matchConditions: {
       titleContains: getStringArray(raw.matchConditions, "titleContains"),
       titleExcludes: getStringArray(raw.matchConditions, "titleExcludes"),

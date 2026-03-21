@@ -45,6 +45,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
   const [isScanning, setIsScanning] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const createMutation = useMutation(api.monitors.create);
   const saveScanResult = useMutation(api.monitors.saveScanResult);
@@ -72,8 +73,20 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
       prompt: string;
       checkInterval: "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
     }) => {
-      // 1. Create monitor in DB immediately with status "scanning"
-      const monitorId = await createMutation(data);
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+
+      let monitorId: Id<"monitors">;
+      try {
+        // 1. Create monitor in DB immediately with status "scanning"
+        monitorId = await createMutation(data);
+      } catch (e) {
+        isSubmittingRef.current = false;
+        const msg = e instanceof Error ? e.message : "Failed to create monitor";
+        toast.error("Failed to create monitor", { description: msg });
+        return;
+      }
+
       setActiveMonitorId(monitorId);
       setIsScanning(true);
 
@@ -114,6 +127,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         toast.error("Scan failed", { description: msg });
       } finally {
         setIsScanning(false);
+        isSubmittingRef.current = false;
       }
     },
     [createMutation, saveScanResult, saveScanError]

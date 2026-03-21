@@ -94,13 +94,15 @@ export function MatchConditionsEditor({ conditions, onChange }: MatchConditionsE
           <Label className="text-sm font-medium">Min price</Label>
           <Input
             type="number"
+            min={0}
             value={conditions.priceMin ?? ""}
-            onChange={(e) =>
+            onChange={(e) => {
+              const v = e.target.valueAsNumber;
               onChange({
                 ...conditions,
-                priceMin: e.target.value ? Number(e.target.value) : undefined,
-              })
-            }
+                priceMin: Number.isFinite(v) ? v : undefined,
+              });
+            }}
             placeholder="No minimum"
             className="h-8 text-sm"
           />
@@ -109,13 +111,15 @@ export function MatchConditionsEditor({ conditions, onChange }: MatchConditionsE
           <Label className="text-sm font-medium">Max price</Label>
           <Input
             type="number"
+            min={0}
             value={conditions.priceMax ?? ""}
-            onChange={(e) =>
+            onChange={(e) => {
+              const v = e.target.valueAsNumber;
               onChange({
                 ...conditions,
-                priceMax: e.target.value ? Number(e.target.value) : undefined,
-              })
-            }
+                priceMax: Number.isFinite(v) ? v : undefined,
+              });
+            }}
             placeholder="No maximum"
             className="h-8 text-sm"
           />

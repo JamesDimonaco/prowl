@@ -37,6 +37,7 @@ extractRoutes.post("/", zValidator("json", extractSchema), async (c) => {
 
     if (message.includes("URL") || message.includes("hostname") || message.includes("not allowed")) {
       clientMessage = message; // URL validation errors are safe to return
+      statusCode = 400;
     } else if (message.includes("Could not resolve authentication") || message.includes("api_key")) {
       clientMessage = "AI service authentication error - check ANTHROPIC_API_KEY";
       console.error("[extract] Anthropic API key issue - is ANTHROPIC_API_KEY set correctly?");

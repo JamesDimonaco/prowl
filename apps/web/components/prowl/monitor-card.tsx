@@ -94,7 +94,7 @@ export function MonitorCard({ monitor, onTogglePause, onDelete }: MonitorCardPro
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <DropdownMenuTrigger aria-label="Monitor actions" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 transition-all hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <MoreVertical className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
