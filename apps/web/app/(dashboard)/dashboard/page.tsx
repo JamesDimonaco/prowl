@@ -6,11 +6,11 @@ import { Plus, Search, Radar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { MonitorCard } from "@/components/prowl/monitor-card";
 import { StatsCards } from "@/components/prowl/stats-cards";
-import { CreateMonitorDialog } from "@/components/prowl/create-monitor-dialog";
 import { DeleteDialog } from "@/components/prowl/delete-dialog";
 import { useMonitors } from "@/hooks/use-monitors";
+import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import { toast } from "sonner";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 import {
   Select,
   SelectContent,
@@ -20,11 +20,9 @@ import {
 } from "@/components/ui/select";
 
 export default function DashboardPage() {
-  const { monitors, createMonitor, updateMonitor, deleteMonitor, togglePause } =
-    useMonitors();
+  const { monitors, togglePause, deleteMonitor } = useMonitors();
+  const { open: openCreate } = useCreateMonitor();
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editMonitor, setEditMonitor] = useState<Doc<"monitors"> | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Doc<"monitors"> | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -48,7 +46,7 @@ export default function DashboardPage() {
             Monitor any website with natural language
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} size="lg" className="gap-2 shadow-md shadow-primary/15">
+        <Button onClick={openCreate} size="lg" className="gap-2 shadow-md shadow-primary/15">
           <Plus className="h-5 w-5" />
           New Monitor
         </Button>
@@ -73,7 +71,7 @@ export default function DashboardPage() {
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="matched">Matched</SelectItem>
+            <SelectItem value="scanning">Scanning</SelectItem>
             <SelectItem value="paused">Paused</SelectItem>
             <SelectItem value="error">Error</SelectItem>
           </SelectContent>
@@ -99,7 +97,7 @@ export default function DashboardPage() {
                 : "Try adjusting your search or filters to find what you're looking for."}
             </p>
             {monitors.length === 0 && (
-              <Button onClick={() => setCreateOpen(true)} className="gap-2 shadow-md shadow-primary/15">
+              <Button onClick={openCreate} className="gap-2 shadow-md shadow-primary/15">
                 <Plus className="h-4 w-4" />
                 Create Your First Monitor
               </Button>
@@ -121,35 +119,10 @@ export default function DashboardPage() {
                 const m = monitors.find((x) => x._id === id);
                 if (m) setDeleteTarget(m);
               }}
-              onEdit={(m) => setEditMonitor(m)}
             />
           ))
         )}
       </div>
-
-      <CreateMonitorDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSubmit={(data) => {
-          createMonitor(data);
-          toast.success("Monitor created", {
-            description: `Now watching ${new URL(data.url).hostname}`,
-          });
-        }}
-      />
-
-      <CreateMonitorDialog
-        open={!!editMonitor}
-        onOpenChange={(open) => !open && setEditMonitor(null)}
-        editMonitor={editMonitor}
-        onSubmit={(data) => {
-          if (editMonitor) {
-            updateMonitor(editMonitor._id, data);
-            toast.success("Monitor updated");
-            setEditMonitor(null);
-          }
-        }}
-      />
 
       <DeleteDialog
         open={!!deleteTarget}

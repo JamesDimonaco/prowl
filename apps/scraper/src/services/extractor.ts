@@ -1,45 +1,46 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ExtractionSchema, ExtractedItem } from "@prowl/shared";
+import { applyMatchConditions } from "@prowl/shared";
 
 const getClient = () => new Anthropic();
 
-const EXTRACTION_PROMPT = `You are a web data extraction assistant. Given the text content of a web page and a user's description of what they're looking for, your job is to:
-
-1. Identify the repeating items/products/listings on the page
-2. Extract structured data for each item
-3. Determine which items match the user's criteria
+const EXTRACTION_PROMPT = `You are a web data extraction assistant. Given the text content of a web page and a user's description of what they're looking for, extract structured data.
 
 Respond with ONLY valid JSON in this exact format:
 {
   "fields": {
-    "title": "description of the title field",
-    "price": "description of the price field",
-    ...other relevant fields
+    "title": "description",
+    "price": "description",
+    "url": "description"
   },
   "items": [
-    { "title": "...", "price": 1299, ...other fields },
-    ...all items found on the page
+    { "title": "...", "price": 1299, "url": "https://...", ...other fields },
+    ...
   ],
   "matchConditions": {
-    "titleContains": ["keywords", "that", "must", "appear"],
-    "titleExcludes": ["keywords", "to", "exclude"],
-    "priceMax": 1500,
+    "mustInclude": ["keyword1", "keyword2"],
+    "mustExclude": ["unwanted1"],
     "priceMin": 0,
-    "mustInclude": ["other", "required", "terms"],
-    "mustExclude": ["other", "excluded", "terms"]
+    "priceMax": 1500
   }
 }
 
 Rules:
-- Extract ALL items on the page, not just matches
+- Extract up to 50 items maximum
+- ALWAYS include a "url" field for each item. Links appear in the text as [text](url) format. Extract the URL from these. If no link exists, use null.
+- Keep item data concise: title, price, url, and 1-2 other relevant fields
 - Prices should be numbers (no currency symbols)
-- Include all fields that seem relevant for the item type
-- matchConditions should reflect the user's stated criteria
-- If you can't determine a field value, use null`;
+- matchConditions.mustInclude: keywords that must appear ANYWHERE in the item (title, description, etc.)
+- matchConditions.mustExclude: keywords that must NOT appear anywhere
+- priceMin/priceMax: price range filter
+- Do NOT use titleContains or titleExcludes - only use mustInclude and mustExclude
+- If you can't determine a field value, use null
+- Do NOT wrap your response in markdown code fences - output raw JSON only`;
 
 export async function extractWithAI(
   pageText: string,
-  prompt: string
+  prompt: string,
+  baseUrl?: string
 ): Promise<{ schema: ExtractionSchema; matches: ExtractedItem[] }> {
   const client = getClient();
 
@@ -48,11 +49,11 @@ export async function extractWithAI(
 
   const message = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
+    max_tokens: 16384,
     messages: [
       {
         role: "user",
-        content: `Page content:\n\n${truncatedText}\n\nUser is looking for: ${prompt}`,
+        content: `Page URL: ${baseUrl ?? "unknown"}\n\nPage content:\n\n${truncatedText}\n\nUser is looking for: ${prompt}`,
       },
     ],
     system: EXTRACTION_PROMPT,
@@ -60,46 +61,149 @@ export async function extractWithAI(
 
   const responseText = message.content[0].type === "text" ? message.content[0].text : "";
 
-  // Parse JSON from response (handle markdown code blocks)
-  const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, responseText];
-  const parsed = JSON.parse(jsonMatch[1]!.trim()) as ExtractionSchema;
+  console.log("[extractor] AI response length:", responseText.length);
+  if (process.env.DEBUG === "true") {
+    console.log("[extractor] AI response preview:", responseText.slice(0, 300));
+  }
 
-  // Apply match conditions to find matching items
+  // Try to extract JSON from the response using multiple strategies
+  const jsonString = extractJson(responseText);
+  if (!jsonString) {
+    if (process.env.DEBUG === "true") {
+      console.error("[extractor] No JSON found in AI response:", responseText.slice(0, 1000));
+    }
+    throw new Error("AI returned no extractable JSON");
+  }
+
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(jsonString);
+  } catch {
+    // The response was likely truncated by max_tokens - try to repair it
+    console.warn("[extractor] JSON parse failed, attempting truncation repair...");
+    const repaired = repairTruncatedJson(jsonString);
+    if (repaired) {
+      try {
+        raw = JSON.parse(repaired);
+        console.log("[extractor] Truncation repair succeeded");
+      } catch (e2) {
+        console.error("[extractor] Repair also failed:", (e2 as Error).message);
+        if (process.env.DEBUG === "true") {
+          console.error("[extractor] First 500 chars:", jsonString.slice(0, 500));
+          console.error("[extractor] Last 200 chars:", jsonString.slice(-200));
+        }
+        throw new Error("AI returned invalid JSON");
+      }
+    } else {
+      console.error("[extractor] Could not repair truncated JSON");
+      if (process.env.DEBUG === "true") {
+        console.error("[extractor] First 500 chars:", jsonString.slice(0, 500));
+        console.error("[extractor] Last 200 chars:", jsonString.slice(-200));
+      }
+      throw new Error("AI returned invalid JSON");
+    }
+  }
+
+  // Normalise into our expected schema shape - be lenient about what AI returns
+  const parsed: ExtractionSchema = {
+    fields: (raw.fields as Record<string, string>) ?? {},
+    items: Array.isArray(raw.items) ? raw.items.filter((i): i is ExtractedItem => i != null && typeof i === "object").slice(0, 50) : [],
+    matchConditions: {
+      titleContains: getStringArray(raw.matchConditions, "titleContains"),
+      titleExcludes: getStringArray(raw.matchConditions, "titleExcludes"),
+      priceMax: getNumber(raw.matchConditions, "priceMax"),
+      priceMin: getNumber(raw.matchConditions, "priceMin"),
+      mustInclude: getStringArray(raw.matchConditions, "mustInclude"),
+      mustExclude: getStringArray(raw.matchConditions, "mustExclude"),
+    },
+  };
+
+  console.log("[extractor] Parsed %d items, %d fields", parsed.items.length, Object.keys(parsed.fields).length);
+
   const matches = applyMatchConditions(parsed.items, parsed.matchConditions);
+  console.log("[extractor] Found %d matches out of %d items", matches.length, parsed.items.length);
 
   return { schema: parsed, matches };
 }
 
-export function applyMatchConditions(items: ExtractedItem[], conditions: ExtractionSchema["matchConditions"]): ExtractedItem[] {
-  return items.filter((item) => {
-    const title = String(item.title || "").toLowerCase();
-    const price = typeof item.price === "number" ? item.price : parseFloat(String(item.price || "0"));
+/**
+ * Attempt to repair JSON that was truncated mid-output (e.g. by max_tokens).
+ * Finds the last valid item boundary and closes all open brackets.
+ */
+function repairTruncatedJson(json: string): string | null {
+  // Find the last complete object in an array (ends with })
+  // Then close any open arrays and objects
+  const lastCompleteObject = json.lastIndexOf("},");
+  const lastCompleteObjectAlt = json.lastIndexOf("}");
 
-    if (conditions.titleContains?.length) {
-      const hasAll = conditions.titleContains.every((kw) => title.includes(kw.toLowerCase()));
-      if (!hasAll) return false;
-    }
+  // Use whichever gives us a valid-looking cutoff
+  let cutPoint = lastCompleteObject > 0 ? lastCompleteObject + 1 : lastCompleteObjectAlt;
+  if (cutPoint <= 0) return null;
 
-    if (conditions.titleExcludes?.length) {
-      const hasExcluded = conditions.titleExcludes.some((kw) => title.includes(kw.toLowerCase()));
-      if (hasExcluded) return false;
-    }
+  let attempt = json.slice(0, cutPoint);
 
-    if (conditions.priceMax !== undefined && price > conditions.priceMax) return false;
-    if (conditions.priceMin !== undefined && price < conditions.priceMin) return false;
+  // Count unclosed brackets
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escape = false;
 
-    if (conditions.mustInclude?.length) {
-      const itemStr = JSON.stringify(item).toLowerCase();
-      const hasAll = conditions.mustInclude.every((kw) => itemStr.includes(kw.toLowerCase()));
-      if (!hasAll) return false;
-    }
+  for (const ch of attempt) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") openBraces++;
+    if (ch === "}") openBraces--;
+    if (ch === "[") openBrackets++;
+    if (ch === "]") openBrackets--;
+  }
 
-    if (conditions.mustExclude?.length) {
-      const itemStr = JSON.stringify(item).toLowerCase();
-      const hasExcluded = conditions.mustExclude.some((kw) => itemStr.includes(kw.toLowerCase()));
-      if (hasExcluded) return false;
-    }
+  // Close any open brackets/braces
+  for (let i = 0; i < openBrackets; i++) attempt += "]";
+  for (let i = 0; i < openBraces; i++) attempt += "}";
 
-    return true;
-  });
+  return attempt;
 }
+
+/** Try multiple strategies to extract a JSON string from AI response text */
+function extractJson(text: string): string | null {
+  const trimmed = text.trim();
+
+  // Strategy 1: Already valid JSON
+  if (trimmed.startsWith("{")) {
+    return trimmed;
+  }
+
+  // Strategy 2: Extract from markdown code fences (greedy to get the full block)
+  const fenceMatch = trimmed.match(/```(?:json)?\s*\n([\s\S]*)\n\s*```/);
+  if (fenceMatch?.[1]) {
+    return fenceMatch[1].trim();
+  }
+
+  // Strategy 3: Find outermost { } braces
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return null;
+}
+
+function getStringArray(obj: unknown, key: string): string[] | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const val = (obj as Record<string, unknown>)[key];
+  if (Array.isArray(val)) return val.filter((v): v is string => typeof v === "string");
+  return undefined;
+}
+
+function getNumber(obj: unknown, key: string): number | undefined {
+  if (!obj || typeof obj !== "object") return undefined;
+  const val = (obj as Record<string, unknown>)[key];
+  if (typeof val === "number") return val;
+  return undefined;
+}
+
+// applyMatchConditions is re-exported from @prowl/shared
+export { applyMatchConditions } from "@prowl/shared";

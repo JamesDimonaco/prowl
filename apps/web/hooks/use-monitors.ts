@@ -44,8 +44,8 @@ export function useMonitors() {
   return { monitors, createMonitor, updateMonitor, deleteMonitor, togglePause };
 }
 
-export function useMonitor(id: Id<"monitors">) {
-  return useQuery(api.monitors.get, { id });
+export function useMonitor(id: Id<"monitors"> | null | undefined) {
+  return useQuery(api.monitors.get, id ? { id } : "skip");
 }
 
 export function useMonitorResults(monitorId: Id<"monitors">) {

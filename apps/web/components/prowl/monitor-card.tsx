@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,14 +14,15 @@ import {
   ExternalLink,
   Pause,
   Play,
-  Pencil,
   Trash2,
   Clock,
   Globe,
   Zap,
+  ArrowRight,
 } from "lucide-react";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 function timeAgo(timestamp?: number): string {
   if (!timestamp) return "Never";
@@ -37,18 +37,21 @@ interface MonitorCardProps {
   monitor: Doc<"monitors">;
   onTogglePause: (id: Id<"monitors">) => void;
   onDelete: (id: Id<"monitors">) => void;
-  onEdit: (monitor: Doc<"monitors">) => void;
 }
 
-export function MonitorCard({ monitor, onTogglePause, onDelete, onEdit }: MonitorCardProps) {
+export function MonitorCard({ monitor, onTogglePause, onDelete }: MonitorCardProps) {
+  const router = useRouter();
+
   const statusBorderColor =
-    monitor.status === "active"
-      ? "group-hover:border-l-emerald-500/50"
-      : monitor.status === "matched"
-        ? "group-hover:border-l-primary/50"
-        : monitor.status === "error"
-          ? "group-hover:border-l-red-500/50"
-          : "group-hover:border-l-amber-500/50";
+    monitor.status === "scanning"
+      ? "group-hover:border-l-blue-500/50"
+      : monitor.status === "active"
+        ? "group-hover:border-l-emerald-500/50"
+        : monitor.status === "matched"
+          ? "group-hover:border-l-primary/50"
+          : monitor.status === "error"
+            ? "group-hover:border-l-red-500/50"
+            : "group-hover:border-l-amber-500/50";
 
   return (
     <Card className={`group relative overflow-hidden border-border/30 border-l-2 border-l-transparent bg-card/50 shadow-sm shadow-black/5 backdrop-blur transition-all hover:shadow-md hover:shadow-black/10 hover:bg-card/80 ${statusBorderColor}`}>
@@ -91,42 +94,27 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onEdit }: Monito
           </div>
 
           <DropdownMenu>
-            <DropdownMenuTrigger >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+            <DropdownMenuTrigger aria-label="Monitor actions" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 transition-all hover:bg-muted outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <MoreVertical className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => router.push(`/dashboard/monitors/${monitor._id}`)}>
+                <ArrowRight className="mr-2 h-4 w-4" />
+                View Details
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => window.open(monitor.url, "_blank")}>
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Open URL
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(monitor)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onTogglePause(monitor._id)}>
                 {monitor.status === "paused" ? (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    Resume
-                  </>
+                  <><Play className="mr-2 h-4 w-4" /> Resume</>
                 ) : (
-                  <>
-                    <Pause className="mr-2 h-4 w-4" />
-                    Pause
-                  </>
+                  <><Pause className="mr-2 h-4 w-4" /> Pause</>
                 )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => onDelete(monitor._id)}
-              >
+              <DropdownMenuItem className="text-destructive" onClick={() => onDelete(monitor._id)}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>

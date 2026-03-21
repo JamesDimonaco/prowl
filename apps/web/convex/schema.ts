@@ -8,6 +8,7 @@ export default defineSchema({
     url: v.string(),
     prompt: v.string(),
     status: v.union(
+      v.literal("scanning"),
       v.literal("active"),
       v.literal("paused"),
       v.literal("error"),
@@ -22,6 +23,7 @@ export default defineSchema({
       v.literal("24h")
     ),
     schema: v.optional(v.any()),
+    blacklistedItems: v.optional(v.array(v.string())),
     lastCheckedAt: v.optional(v.number()),
     lastMatchAt: v.optional(v.number()),
     lastError: v.optional(v.string()),
