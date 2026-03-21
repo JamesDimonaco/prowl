@@ -64,7 +64,41 @@ export default function MonitorDetailPage({
   const [editedConditions, setEditedConditions] = useState<MatchConditions | null>(null);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const updateBlacklist = useMutation(api.monitors.updateBlacklist);
 
+  // Derive all computed values before any early returns (rules of hooks)
+  const schema = monitor?.schema as ExtractionSchema | undefined;
+  const allItems = (schema?.items ?? []) as ExtractedItem[];
+  const blacklist = ((monitor as Record<string, unknown>)?.blacklistedItems ?? []) as string[];
+  const conditions = editedConditions ?? schema?.matchConditions ?? {};
+  const matchesBeforeBlacklist = allItems.length > 0 ? applyMatchConditions(allItems, conditions) : [];
+  const matches = matchesBeforeBlacklist.filter(
+    (item) => !blacklist.includes(String(item.title ?? ""))
+  );
+  const hasEdits = editedConditions !== null;
+
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return allItems;
+    const q = searchQuery.toLowerCase();
+    return allItems.filter((item) =>
+      JSON.stringify(item).toLowerCase().includes(q)
+    );
+  }, [allItems, searchQuery]);
+
+  const sortedItems = useMemo(() => {
+    return [...filteredItems].sort((a, b) => {
+      const aBlacklisted = blacklist.includes(String(a.title ?? ""));
+      const bBlacklisted = blacklist.includes(String(b.title ?? ""));
+      if (aBlacklisted !== bBlacklisted) return aBlacklisted ? 1 : -1;
+
+      const aMatch = matches.some((m) => JSON.stringify(m) === JSON.stringify(a));
+      const bMatch = matches.some((m) => JSON.stringify(m) === JSON.stringify(b));
+      if (aMatch !== bMatch) return aMatch ? -1 : 1;
+      return 0;
+    });
+  }, [filteredItems, matches, blacklist]);
+
+  // Early returns AFTER all hooks
   if (monitor === undefined) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -84,41 +118,6 @@ export default function MonitorDetailPage({
     );
   }
 
-  const schema = monitor.schema as ExtractionSchema | undefined;
-  const allItems = (schema?.items ?? []) as ExtractedItem[];
-  const blacklist = (monitor.blacklistedItems ?? []) as string[];
-  const conditions = editedConditions ?? schema?.matchConditions ?? {};
-
-  // Apply match conditions, then filter out blacklisted items
-  const matchesBeforeBlacklist = allItems.length > 0 ? applyMatchConditions(allItems, conditions) : [];
-  const matches = matchesBeforeBlacklist.filter(
-    (item) => !blacklist.includes(String(item.title ?? ""))
-  );
-  const hasEdits = editedConditions !== null;
-
-  // Search filter for the items list
-  const filteredItems = useMemo(() => {
-    if (!searchQuery) return allItems;
-    const q = searchQuery.toLowerCase();
-    return allItems.filter((item) =>
-      JSON.stringify(item).toLowerCase().includes(q)
-    );
-  }, [allItems, searchQuery]);
-
-  // Sort: matches first, then blacklisted last
-  const sortedItems = useMemo(() => {
-    return [...filteredItems].sort((a, b) => {
-      const aBlacklisted = blacklist.includes(String(a.title ?? ""));
-      const bBlacklisted = blacklist.includes(String(b.title ?? ""));
-      if (aBlacklisted !== bBlacklisted) return aBlacklisted ? 1 : -1;
-
-      const aMatch = matches.some((m) => JSON.stringify(m) === JSON.stringify(a));
-      const bMatch = matches.some((m) => JSON.stringify(m) === JSON.stringify(b));
-      if (aMatch !== bMatch) return aMatch ? -1 : 1;
-      return 0;
-    });
-  }, [filteredItems, matches, blacklist]);
-
   async function saveConditions() {
     if (!schema || !editedConditions) return;
     setSaving(true);
@@ -135,8 +134,6 @@ export default function MonitorDetailPage({
       setSaving(false);
     }
   }
-
-  const updateBlacklist = useMutation(api.monitors.updateBlacklist);
 
   async function blacklistItem(title: string) {
     await updateBlacklist({ id: monitorId, blacklistedItems: [...blacklist, title] });
