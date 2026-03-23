@@ -24,7 +24,7 @@ export function useMonitors() {
       name?: string;
       url?: string;
       prompt?: string;
-      status?: "active" | "paused" | "error" | "matched";
+      status?: "scanning" | "active" | "paused" | "error";
       checkInterval?: "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
     }
   ) => updateMutation({ id, ...data });

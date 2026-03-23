@@ -11,8 +11,7 @@ export default defineSchema({
       v.literal("scanning"),
       v.literal("active"),
       v.literal("paused"),
-      v.literal("error"),
-      v.literal("matched")
+      v.literal("error")
     ),
     checkInterval: v.union(
       v.literal("5m"),

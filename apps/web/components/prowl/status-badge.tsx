@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Activity, Pause, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { Activity, Pause, AlertTriangle, Loader2 } from "lucide-react";
 
 const statusConfig = {
   scanning: {
@@ -21,11 +21,6 @@ const statusConfig = {
     label: "Error",
     icon: AlertTriangle,
     className: "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/15",
-  },
-  matched: {
-    label: "Matched",
-    icon: CheckCircle2,
-    className: "bg-primary/10 text-primary border-primary/20 hover:bg-primary/15",
   },
 };
 

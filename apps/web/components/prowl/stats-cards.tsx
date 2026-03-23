@@ -1,14 +1,14 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Activity, Eye, Zap, AlertTriangle } from "lucide-react";
+import { Activity, Zap, AlertTriangle, Clock } from "lucide-react";
 import type { Doc } from "@/convex/_generated/dataModel";
 
 export function StatsCards({ monitors }: { monitors: Doc<"monitors">[] }) {
   const active = monitors.filter((m) => m.status === "active").length;
-  const matched = monitors.filter((m) => m.status === "matched").length;
   const totalMatches = monitors.reduce((sum, m) => sum + m.matchCount, 0);
   const errors = monitors.filter((m) => m.status === "error").length;
+  const totalChecks = monitors.reduce((sum, m) => sum + (m.checkCount ?? 0), 0);
 
   const stats = [
     {
@@ -19,16 +19,16 @@ export function StatsCards({ monitors }: { monitors: Doc<"monitors">[] }) {
       bg: "bg-emerald-500/10",
     },
     {
-      label: "Matches Found",
+      label: "Total Matches",
       value: totalMatches,
       icon: Zap,
       color: "text-primary",
       bg: "bg-primary/10",
     },
     {
-      label: "Currently Matched",
-      value: matched,
-      icon: Eye,
+      label: "Total Checks",
+      value: totalChecks,
+      icon: Clock,
       color: "text-blue-400",
       bg: "bg-blue-500/10",
     },

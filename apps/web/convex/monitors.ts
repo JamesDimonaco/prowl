@@ -62,8 +62,7 @@ const statusValidator = v.union(
   v.literal("scanning"),
   v.literal("active"),
   v.literal("paused"),
-  v.literal("error"),
-  v.literal("matched")
+  v.literal("error")
 );
 
 const intervalValidator = v.union(
@@ -144,7 +143,7 @@ export const create = mutation({
   },
 });
 
-/** Save scan results to a monitor. Transitions from "scanning" to "active"/"matched". */
+/** Save scan results to a monitor. Transitions from "scanning" to "active". */
 export const saveScanResult = mutation({
   args: {
     id: v.id("monitors"),
