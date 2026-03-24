@@ -231,7 +231,7 @@ async function runQuickCheck(
 }
 
 async function runFullExtract(
-  ctx: { runMutation: (ref: any, args: any) => Promise<any>; runAction: (ref: any, args: any) => Promise<any> },
+  ctx: { runMutation: (ref: any, args: any) => Promise<any> },
   monitor: any,
   scraperUrl: string,
   scraperKey: string

@@ -19,6 +19,17 @@ function safeHostname(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
 }
 
+/** Validate URL for use in href attributes — block dangerous schemes */
+function safeHref(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch { /* invalid URL */ }
+  return "#";
+}
+
 /** Send a match alert email */
 export const sendMatchAlert = internalAction({
   args: {
@@ -66,12 +77,12 @@ export const sendMatchAlert = internalAction({
       <div style="padding:32px">
         <p style="margin:0 0 16px;color:#333;font-size:16px">
           Your monitor found <strong>${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}</strong>${itemsText} on
-          <a href="${args.url}" style="color:#4f46e5;text-decoration:none">${safeHost}</a>.
+          <a href="${safeHref(args.url)}" style="color:#4f46e5;text-decoration:none">${safeHost}</a>.
         </p>
         <ul style="list-style:none;padding:0;margin:0 0 16px">${matchList}</ul>
         ${moreText}
         <div style="margin-top:24px">
-          <a href="${args.url}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-right:8px">View on site</a>
+          <a href="${safeHref(args.url)}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-right:8px">View on site</a>
           <a href="${APP_URL}/dashboard/monitors/${args.monitorId}" style="display:inline-block;background:#f4f4f5;color:#333;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px">View in PageAlert</a>
         </div>
       </div>
@@ -129,7 +140,10 @@ export const sendErrorAlert = internalAction({
   },
   handler: async (_ctx, args) => {
     const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) return;
+    if (!apiKey) {
+      console.error("[email] RESEND_API_KEY not configured, skipping");
+      return;
+    }
 
     const safeName = esc(args.monitorName);
     const safeHost = esc(safeHostname(args.url));
@@ -148,7 +162,7 @@ export const sendErrorAlert = internalAction({
       </div>
       <div style="padding:32px">
         <p style="margin:0 0 16px;color:#333;font-size:16px">
-          Your monitor for <a href="${args.url}" style="color:#4f46e5;text-decoration:none">${safeHost}</a>
+          Your monitor for <a href="${safeHref(args.url)}" style="color:#4f46e5;text-decoration:none">${safeHost}</a>
           has stopped working after multiple retries.
         </p>
         <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin-bottom:24px">
@@ -165,7 +179,7 @@ export const sendErrorAlert = internalAction({
 </html>`;
 
     try {
-      await fetch("https://api.resend.com/emails", {
+      const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -180,6 +194,12 @@ export const sendErrorAlert = internalAction({
         }),
         signal: AbortSignal.timeout(RESEND_TIMEOUT),
       });
+
+      if (!res.ok) {
+        console.error("[email] Resend API error:", res.status, "monitor:", args.monitorId);
+        return;
+      }
+      console.log("[email] Error alert sent, monitor:", args.monitorId);
     } catch (e) {
       console.error("[email] Error alert failed, monitor:", args.monitorId, e instanceof Error ? e.message : "");
     }
