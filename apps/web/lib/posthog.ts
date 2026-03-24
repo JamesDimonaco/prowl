@@ -1,7 +1,9 @@
 import posthog from "posthog-js";
 
-export const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY!;
+export const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 export const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
+
+let initialized = false;
 
 export function initPostHog() {
   if (typeof window === "undefined") return;
@@ -21,19 +23,23 @@ export function initPostHog() {
       maskTextSelector: "[data-ph-mask]", // Custom masking
     },
   });
+  initialized = true;
 }
 
 // ---- Typed event helpers ----
 
 export function identifyUser(userId: string, properties?: Record<string, unknown>) {
+  if (!initialized) return;
   posthog.identify(userId, properties);
 }
 
 export function resetUser() {
+  if (!initialized) return;
   posthog.reset();
 }
 
 export function trackEvent(event: string, properties?: Record<string, unknown>) {
+  if (!initialized) return;
   posthog.capture(event, properties);
 }
 
@@ -76,7 +82,7 @@ export function trackScanCompleted(props: { url: string; itemCount: number; matc
 export function trackScanFailed(props: { url: string; error: string; durationMs: number }) {
   trackEvent("scan_failed", {
     url_domain: safeDomain(props.url),
-    error: props.error,
+    error: props.error.slice(0, 200),
     duration_ms: props.durationMs,
   });
 }

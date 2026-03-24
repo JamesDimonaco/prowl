@@ -16,7 +16,7 @@ export function useAuth() {
         name: user.name,
       });
     }
-  }, [user]);
+  }, [user?.id]);
 
   return {
     user,

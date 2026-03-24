@@ -9,11 +9,17 @@ const posthogKey = process.env.POSTHOG_KEY;
 const posthogHost = process.env.POSTHOG_HOST ?? "https://us.i.posthog.com";
 const posthog = posthogKey ? new PostHog(posthogKey, { host: posthogHost }) : null;
 
+if (posthog) {
+  process.on("SIGTERM", async () => { await posthog.shutdown(); process.exit(0); });
+  process.on("SIGINT", async () => { await posthog.shutdown(); process.exit(0); });
+}
+
 const getClient = (): AnthropicOriginal => {
-  if (posthog) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (posthog && apiKey) {
     // Wrapped client — auto-captures $ai_generation events
     return new PostHogAnthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY!,
+      apiKey,
       posthog,
     }) as unknown as AnthropicOriginal;
   }

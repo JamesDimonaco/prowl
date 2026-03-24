@@ -133,6 +133,8 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         if (confidence <= 10 && totalItems === 0) {
           const reason = insights?.notices?.[0] ?? "Page appears inaccessible - no data could be extracted";
 
+          trackScanFailed({ url: data.url, error: reason, durationMs });
+
           await saveScanError({ id: monitorId, error: reason });
 
           await createLog({

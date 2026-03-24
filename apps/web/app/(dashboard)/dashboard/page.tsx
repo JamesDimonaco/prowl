@@ -183,8 +183,13 @@ export default function DashboardPage() {
               key={monitor._id}
               monitor={monitor}
               onTogglePause={(id) => {
-                togglePause(id);
                 const m = monitors.find((x) => x._id === id);
+                if (m?.status === "paused") {
+                  trackMonitorResumed();
+                } else {
+                  trackMonitorPaused();
+                }
+                togglePause(id);
                 toast.success(
                   m?.status === "paused" ? "Monitor resumed" : "Monitor paused"
                 );
