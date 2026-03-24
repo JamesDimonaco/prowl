@@ -23,9 +23,15 @@ export function useAuth() {
     session: session.data?.session ?? null,
     isLoading: session.isPending,
     isAuthenticated: !!user,
-    signOut: () => {
-      resetUser();
-      authClient.signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } });
+    signOut: async () => {
+      try {
+        await authClient.signOut();
+      } catch {
+        // Ignore signout errors
+      } finally {
+        resetUser();
+        window.location.href = "/login";
+      }
     },
   };
 }
