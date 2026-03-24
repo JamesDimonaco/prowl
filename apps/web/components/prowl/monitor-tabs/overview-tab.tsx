@@ -3,14 +3,10 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { MatchConditionsEditor } from "@/components/prowl/match-conditions-editor";
 import { AiInsightsCard } from "@/components/prowl/ai-insights";
 import {
   ExternalLink,
-  Clock,
-  Globe,
-  Zap,
   Loader2,
   Save,
   RotateCcw,
@@ -21,15 +17,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { MatchConditions, ExtractionSchema } from "@prowl/shared";
 import { toast } from "sonner";
-
-function timeAgo(timestamp?: number): string {
-  if (!timestamp) return "Never";
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return "Just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
-}
+import { timeAgo } from "@/lib/time";
 
 interface OverviewTabProps {
   monitorId: Id<"monitors">;
@@ -78,11 +66,20 @@ export function OverviewTab({ monitorId, monitor, matchCount, totalItems }: Over
         <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
           <CardContent className="p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">URL</p>
-            <a href={monitor.url} target="_blank" rel="noopener noreferrer"
-              className="text-sm font-medium text-primary hover:underline flex items-center gap-1.5">
-              {new URL(monitor.url).hostname}
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            {(() => {
+              try {
+                const hostname = new URL(monitor.url).hostname;
+                return (
+                  <a href={monitor.url} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-medium text-primary hover:underline flex items-center gap-1.5">
+                    {hostname}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                );
+              } catch {
+                return <p className="text-sm font-medium">{monitor.url}</p>;
+              }
+            })()}
           </CardContent>
         </Card>
         <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">

@@ -15,7 +15,7 @@ export interface ChangeSet {
   summary: string;
 }
 
-function getItemKey(item: ExtractedItem): string {
+export function getItemKey(item: ExtractedItem): string {
   if (item.url) return String(item.url);
   return `${String(item.title ?? "")}-${String(item.price ?? "")}`;
 }

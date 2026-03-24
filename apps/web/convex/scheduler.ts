@@ -128,7 +128,7 @@ export const recordCheckResult = internalMutation({
     if (args.items && args.items.length > 0) {
       const prevResult = await ctx.db
         .query("scrapeResults")
-        .withIndex("by_monitorId", (q) => q.eq("monitorId", args.monitorId))
+        .withIndex("by_monitorId_scrapedAt", (q) => q.eq("monitorId", args.monitorId))
         .order("desc")
         .first();
 

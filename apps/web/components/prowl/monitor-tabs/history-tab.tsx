@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -24,33 +23,15 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import type { ChangeSet, PriceChange } from "@prowl/shared";
-
-interface ScrapeResult {
-  _id: string;
-  matches: unknown[];
-  items?: unknown[];
-  totalItems: number;
-  hasNewMatches: boolean;
-  scrapedAt: number;
-  error?: string;
-  changes?: ChangeSet;
-}
+import type { Doc } from "@/convex/_generated/dataModel";
+import { timeAgo } from "@/lib/time";
 
 interface HistoryTabProps {
-  results: ScrapeResult[];
+  results: Doc<"scrapeResults">[];
 }
 
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleString();
-}
-
-function timeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return "Just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
 }
 
 type FilterType = "all" | "matches" | "changes" | "errors";

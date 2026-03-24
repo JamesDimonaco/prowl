@@ -15,14 +15,10 @@ import {
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ExtractedItem } from "@prowl/shared";
+import { getItemKey } from "@prowl/shared";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-
-function getItemKey(item: ExtractedItem): string {
-  if (item.url) return String(item.url);
-  return `${String(item.title ?? "")}-${String(item.price ?? "")}`;
-}
 
 interface ItemsTabProps {
   monitorId: Id<"monitors">;
@@ -44,15 +40,17 @@ export function ItemsTab({ monitorId, allItems, matches, blacklist }: ItemsTabPr
   }, [allItems, searchQuery]);
 
   const sortedItems = useMemo(() => {
+    const matchKeys = new Set(matches.map((m) => getItemKey(m)));
+    const blacklistKeys = new Set(blacklist);
     return [...filteredItems].sort((a, b) => {
       const aKey = getItemKey(a);
       const bKey = getItemKey(b);
-      const aBlacklisted = blacklist.includes(aKey);
-      const bBlacklisted = blacklist.includes(bKey);
+      const aBlacklisted = blacklistKeys.has(aKey);
+      const bBlacklisted = blacklistKeys.has(bKey);
       if (aBlacklisted !== bBlacklisted) return aBlacklisted ? 1 : -1;
 
-      const aMatch = matches.some((m) => getItemKey(m) === aKey);
-      const bMatch = matches.some((m) => getItemKey(m) === bKey);
+      const aMatch = matchKeys.has(aKey);
+      const bMatch = matchKeys.has(bKey);
       if (aMatch !== bMatch) return aMatch ? -1 : 1;
       return 0;
     });

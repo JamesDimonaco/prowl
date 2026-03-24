@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/prowl/status-badge";
@@ -21,7 +21,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMonitor, useMonitorResults, useMonitors } from "@/hooks/use-monitors";
-import { applyMatchConditions } from "@prowl/shared";
+import { applyMatchConditions, getItemKey } from "@prowl/shared";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ExtractedItem, ExtractionSchema } from "@prowl/shared";
 import { toast } from "sonner";
@@ -46,11 +46,6 @@ export default function MonitorDetailPage({
   const blacklist = ((monitor as Record<string, unknown>)?.blacklistedItems ?? []) as string[];
   const conditions = schema?.matchConditions ?? {};
   const matchesBeforeBlacklist = allItems.length > 0 ? applyMatchConditions(allItems, conditions) : [];
-
-  function getItemKey(item: ExtractedItem): string {
-    if (item.url) return String(item.url);
-    return `${String(item.title ?? "")}-${String(item.price ?? "")}`;
-  }
 
   const matches = matchesBeforeBlacklist.filter(
     (item) => !blacklist.includes(getItemKey(item))
@@ -162,7 +157,7 @@ export default function MonitorDetailPage({
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <HistoryTab results={results as any} />
+          <HistoryTab results={results} />
         </TabsContent>
       </Tabs>
 
