@@ -176,14 +176,33 @@ export const runScheduledChecks = internalAction({
           const checkCount = monitor.checkCount ?? 0;
           const needsReextract = checkCount > 0 && checkCount % FULL_REEXTRACT_EVERY === 0;
 
+          let checkResult: { hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number };
+
           if (needsReextract && monitor.schema) {
-            await runFullExtract(ctx, monitor, scraperUrl, scraperKey);
+            checkResult = await runFullExtract(ctx, monitor, scraperUrl, scraperKey);
           } else {
-            await runQuickCheck(ctx, monitor, scraperUrl, scraperKey);
+            checkResult = await runQuickCheck(ctx, monitor, scraperUrl, scraperKey);
+          }
+
+          // Send match email
+          if (checkResult.hasMatch && monitor.userEmail) {
+            await ctx.runAction(internal.emails.sendMatchAlert, {
+              to: monitor.userEmail,
+              monitorName: monitor.name,
+              monitorId: monitor._id,
+              url: monitor.url,
+              matchCount: checkResult.matchCount,
+              matches: checkResult.matches,
+              totalItems: checkResult.totalItems,
+            });
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Unknown error";
           console.error(`[scheduler] Monitor ${monitor._id} failed:`, msg);
+
+          // Check if this will max out retries
+          const retryCount = (monitor.retryCount ?? 0) + 1;
+          const willError = retryCount >= MAX_RETRIES;
 
           await ctx.runMutation(internal.scheduler.recordCheckResult, {
             monitorId: monitor._id,
@@ -193,6 +212,17 @@ export const runScheduledChecks = internalAction({
             matches: [],
             error: msg,
           });
+
+          // Send error email when retries exhausted
+          if (willError && monitor.userEmail) {
+            await ctx.runAction(internal.emails.sendErrorAlert, {
+              to: monitor.userEmail,
+              monitorName: monitor.name,
+              monitorId: monitor._id,
+              url: monitor.url,
+              error: msg,
+            }).catch(() => {}); // Don't fail the check if email fails
+          }
         }
       })
     );
@@ -210,7 +240,7 @@ async function runQuickCheck(
   monitor: any,
   scraperUrl: string,
   scraperKey: string
-) {
+): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number }> {
   const matchConditions = monitor.schema?.matchConditions ?? {};
 
   const res = await fetch(`${scraperUrl}/api/quick-check`, {
@@ -250,6 +280,11 @@ async function runQuickCheck(
   });
 
   console.log(`[scheduler] Quick check ${monitor._id}: ${hasMatch ? "MATCH" : "no match"}`);
+
+  const matchData = hasMatch
+    ? [{ quickCheck: true, keywordResults: result.keywordResults, priceResults: result.priceResults }]
+    : [];
+  return { hasMatch, matchCount: hasMatch ? 1 : 0, matches: matchData, totalItems: 0 };
 }
 
 async function runFullExtract(
@@ -257,7 +292,7 @@ async function runFullExtract(
   monitor: any,
   scraperUrl: string,
   scraperKey: string
-) {
+): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number }> {
   // First check page is accessible before burning AI credits
   const quickRes = await fetch(`${scraperUrl}/api/quick-check`, {
     method: "POST",
@@ -275,6 +310,7 @@ async function runFullExtract(
   if (quickRes.ok) {
     const quickResult = await quickRes.json();
     if (!quickResult.accessible) {
+      // Soft failure — don't count as retry, just skip the re-extract
       console.log(`[scheduler] Skipping re-extract for ${monitor._id}: page inaccessible`);
       await ctx.runMutation(internal.scheduler.recordCheckResult, {
         monitorId: monitor._id,
@@ -282,9 +318,9 @@ async function runFullExtract(
         matchCount: monitor.matchCount ?? 0,
         totalItems: 0,
         matches: [],
-        error: "Page inaccessible during re-extract — kept existing schema",
+        // No error field — this is informational, not a retry-worthy failure
       });
-      return;
+      return { hasMatch: false, matchCount: 0, matches: [], totalItems: 0 };
     }
   }
 
@@ -312,6 +348,7 @@ async function runFullExtract(
   // If low confidence + no items, keep existing schema
   const confidence = result.schema?.insights?.confidence ?? 100;
   if (confidence <= 10 && (result.totalItems ?? 0) === 0) {
+    // Soft failure — don't count as retry
     console.log(`[scheduler] Re-extract ${monitor._id}: low confidence (${confidence}%), keeping existing schema`);
     await ctx.runMutation(internal.scheduler.recordCheckResult, {
       monitorId: monitor._id,
@@ -319,9 +356,9 @@ async function runFullExtract(
       matchCount: monitor.matchCount ?? 0,
       totalItems: 0,
       matches: [],
-      error: `Re-extract low confidence (${confidence}%) — kept existing schema`,
+      // No error field — informational, not retry-worthy
     });
-    return;
+    return { hasMatch: false, matchCount: 0, matches: [], totalItems: 0 };
   }
 
   const matchCount = result.matches?.length ?? 0;
@@ -338,4 +375,6 @@ async function runFullExtract(
   });
 
   console.log(`[scheduler] Full re-extract ${monitor._id}: ${totalItems} items, ${matchCount} matches`);
+
+  return { hasMatch: matchCount > 0, matchCount, matches: result.matches ?? [], totalItems };
 }
