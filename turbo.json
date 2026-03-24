@@ -1,5 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "CONVEX_DEPLOYMENT",
+    "NEXT_PUBLIC_CONVEX_URL",
+    "NEXT_PUBLIC_CONVEX_SITE_URL",
+    "BETTER_AUTH_URL",
+    "SCRAPER_URL",
+    "SCRAPER_API_KEY",
+    "RESEND_API_KEY",
+    "ANTHROPIC_API_KEY"
+  ],
   "tasks": {
     "dev": {
       "cache": false,
