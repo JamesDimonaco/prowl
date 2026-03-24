@@ -8,13 +8,10 @@ export function useAuth() {
   const session = authClient.useSession();
   const user = session.data?.user ?? null;
 
-  // Identify user in PostHog when they log in
+  // Identify user in PostHog when they log in (no PII sent)
   useEffect(() => {
     if (user) {
-      identifyUser(user.id, {
-        email: user.email,
-        name: user.name,
-      });
+      identifyUser(user.id);
     }
   }, [user?.id]);
 

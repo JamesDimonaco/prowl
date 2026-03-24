@@ -182,17 +182,20 @@ export default function DashboardPage() {
             <MonitorCard
               key={monitor._id}
               monitor={monitor}
-              onTogglePause={(id) => {
+              onTogglePause={async (id) => {
                 const m = monitors.find((x) => x._id === id);
-                if (m?.status === "paused") {
-                  trackMonitorResumed();
-                } else {
-                  trackMonitorPaused();
+                try {
+                  await togglePause(id);
+                  if (m?.status === "paused") {
+                    trackMonitorResumed();
+                    toast.success("Monitor resumed");
+                  } else {
+                    trackMonitorPaused();
+                    toast.success("Monitor paused");
+                  }
+                } catch {
+                  toast.error("Failed to update monitor");
                 }
-                togglePause(id);
-                toast.success(
-                  m?.status === "paused" ? "Monitor resumed" : "Monitor paused"
-                );
               }}
               onRescan={handleRescan}
               onDelete={(id) => {
