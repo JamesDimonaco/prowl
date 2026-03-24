@@ -12,6 +12,7 @@ import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import { trackMonitorDeleted, trackMonitorPaused, trackMonitorResumed } from "@/lib/posthog";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import {
   Select,
@@ -204,6 +205,7 @@ export default function DashboardPage() {
         onConfirm={() => {
           if (deleteTarget) {
             deleteMonitor(deleteTarget._id);
+            trackMonitorDeleted();
             toast.success("Monitor deleted");
             setDeleteTarget(null);
           }
