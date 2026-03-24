@@ -192,30 +192,6 @@ async function getTextWithLinks(page: Page): Promise<string> {
   });
 }
 
-async function getCleanText(page: Page): Promise<string> {
-  return page.evaluate(() => {
-    const selectorsToRemove = [
-      "script",
-      "style",
-      "noscript",
-      "nav",
-      "footer",
-      "header",
-      "iframe",
-      '[role="navigation"]',
-      '[role="banner"]',
-      '[role="contentinfo"]',
-    ];
-
-    const clone = document.body.cloneNode(true) as HTMLElement;
-    selectorsToRemove.forEach((selector) => {
-      clone.querySelectorAll(selector).forEach((el) => el.remove());
-    });
-
-    return clone.innerText.replace(/\n{3,}/g, "\n\n").trim();
-  });
-}
-
 const userAgents = [
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -225,11 +201,4 @@ const userAgents = [
 
 function getRandomUserAgent(): string {
   return userAgents[Math.floor(Math.random() * userAgents.length)];
-}
-
-export async function closeBrowser(): Promise<void> {
-  if (browser) {
-    await browser.close();
-    browser = null;
-  }
 }

@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { scrapeRoutes } from "./routes/scrape.js";
 import { extractRoutes } from "./routes/extract.js";
-import { checkRoutes } from "./routes/check.js";
 import { quickCheckRoutes } from "./routes/quick-check.js";
 import { authMiddleware } from "./middleware/auth.js";
 
@@ -37,7 +36,6 @@ const api = new Hono();
 api.use("*", authMiddleware);
 api.route("/scrape", scrapeRoutes);
 api.route("/extract", extractRoutes);
-api.route("/check", checkRoutes);
 api.route("/quick-check", quickCheckRoutes);
 
 app.route("/api", api);

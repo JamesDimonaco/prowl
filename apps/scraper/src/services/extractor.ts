@@ -257,6 +257,3 @@ function getNumber(obj: unknown, key: string): number | undefined {
   if (typeof val === "number") return val;
   return undefined;
 }
-
-// applyMatchConditions is re-exported from @prowl/shared
-export { applyMatchConditions } from "@prowl/shared";
