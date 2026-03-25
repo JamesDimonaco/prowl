@@ -90,9 +90,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_URL,
   },
-  other: {
-    "google-site-verification": "", // Add when you set up Google Search Console
-  },
+  ...(process.env.GOOGLE_SITE_VERIFICATION ? {
+    other: { "google-site-verification": process.env.GOOGLE_SITE_VERIFICATION },
+  } : {}),
 };
 
 // JSON-LD structured data for rich search results
@@ -136,7 +136,7 @@ const jsonLd = {
     "Visual change detection",
     "Works with any website",
   ],
-  screenshot: `${SITE_URL}/logo.svg`,
+  // screenshot: Add a real product screenshot when available
 };
 
 const faqJsonLd = {
