@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -51,6 +51,7 @@ export function Navbar() {
           <DropdownMenu>
             <DropdownMenuTrigger className="relative h-9 w-9 rounded-full hover:opacity-80 transition-opacity outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Avatar className="h-9 w-9">
+                {user?.image && <AvatarImage src={user.image} alt={user.name ?? "Profile"} />}
                 <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                   {initials}
                 </AvatarFallback>
