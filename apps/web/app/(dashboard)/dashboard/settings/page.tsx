@@ -36,10 +36,14 @@ export default function SettingsPage() {
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("upgraded=true")) {
       toast.success("Welcome to your new plan!", { description: "Your subscription is now active." });
-      // Clean URL
-      window.history.replaceState({}, "", "/dashboard/settings");
+      refetchTier();
+      // Delay URL cleanup to let the tier refetch complete
+      const timer = setTimeout(() => {
+        window.history.replaceState({}, "", "/dashboard/settings");
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [refetchTier]);
 
   async function handleCheckout(slug: "pro" | "business") {
     try {

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 
 const tierValidator = v.union(v.literal("free"), v.literal("pro"), v.literal("business"));
 
@@ -16,36 +16,6 @@ export const get = query({
       .unique();
 
     return { tier: (record?.tier ?? "free") as "free" | "pro" | "business" };
-  },
-});
-
-/** Sync the user's tier from client (called after checkout or on page load) */
-export const sync = mutation({
-  args: {
-    tier: tierValidator,
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const userId = identity.subject;
-
-    const existing = await ctx.db
-      .query("userTiers")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .unique();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        tier: args.tier,
-        updatedAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert("userTiers", {
-        userId,
-        tier: args.tier,
-        updatedAt: Date.now(),
-      });
-    }
   },
 });
 

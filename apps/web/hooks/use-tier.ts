@@ -1,7 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState, useEffect, useCallback } from "react";
 
@@ -38,16 +38,14 @@ export const TIER_LIMITS: Record<Tier, {
 };
 
 function detectTier(subscriptions: Array<Record<string, unknown>>): Tier {
+  let best: Tier = "free";
   for (const sub of subscriptions) {
     const slug = String(sub.slug ?? sub.productSlug ?? "").toLowerCase();
-    if (slug === "business") return "business";
-    if (slug === "pro") return "pro";
-
     const name = String(sub.productName ?? sub.name ?? "").toLowerCase();
-    if (name.includes("business")) return "business";
-    if (name.includes("pro")) return "pro";
+    if (slug === "business" || name.includes("business")) return "business"; // can't go higher
+    if (slug === "pro" || name.includes("pro")) best = "pro";
   }
-  return "free";
+  return best;
 }
 
 interface TierInfo {
@@ -64,7 +62,6 @@ interface TierInfo {
 export function useTier(): TierInfo {
   // Primary: Convex DB (reactive, instant)
   const convexTier = useQuery(api.tiers.get);
-  const syncTier = useMutation(api.tiers.sync);
 
   const [polarTier, setPolarTier] = useState<Tier | null>(null);
   const [polarLoading, setPolarLoading] = useState(false);
@@ -72,7 +69,7 @@ export function useTier(): TierInfo {
   const tier: Tier = convexTier?.tier ?? polarTier ?? "free";
   const isLoading = convexTier === undefined && polarLoading;
 
-  // Fetch tier from Polar and sync to Convex
+  // Fetch tier from Polar as a fallback read (webhooks populate Convex)
   const fetchAndSync = useCallback(async () => {
     setPolarLoading(true);
     try {
@@ -85,15 +82,6 @@ export function useTier(): TierInfo {
         if (Array.isArray(subs) && subs.length > 0) {
           const detected = detectTier(subs);
           setPolarTier(detected);
-
-          // Sync to Convex DB so server-side enforcement works
-          if (detected !== (convexTier?.tier ?? "free")) {
-            await syncTier({ tier: detected });
-          }
-        } else if (convexTier?.tier && convexTier.tier !== "free") {
-          // User has no active subscriptions but Convex says they're paid
-          // They may have canceled — sync back to free
-          await syncTier({ tier: "free" });
         }
       }
     } catch (err) {
