@@ -1,7 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState, useEffect, useCallback } from "react";
 
@@ -37,6 +37,19 @@ export const TIER_LIMITS: Record<Tier, {
   },
 };
 
+function detectTier(subscriptions: Array<Record<string, unknown>>): Tier {
+  for (const sub of subscriptions) {
+    const slug = String(sub.slug ?? sub.productSlug ?? "").toLowerCase();
+    if (slug === "business") return "business";
+    if (slug === "pro") return "pro";
+
+    const name = String(sub.productName ?? sub.name ?? "").toLowerCase();
+    if (name.includes("business")) return "business";
+    if (name.includes("pro")) return "pro";
+  }
+  return "free";
+}
+
 interface TierInfo {
   tier: Tier;
   isLoading: boolean;
@@ -48,43 +61,19 @@ interface TierInfo {
   refetch: () => void;
 }
 
-// Product ID to tier mapping — set from env or hardcode after Polar setup
-const PRODUCT_TIER_MAP: Record<string, Tier> = {};
-if (typeof window !== "undefined") {
-  // These could also come from a config endpoint
-  // For now we match by product name/slug in the subscription data
-}
-
-function detectTier(subscriptions: Array<Record<string, unknown>>): Tier {
-  for (const sub of subscriptions) {
-    // Check by slug (set by Better Auth Polar plugin)
-    const slug = String(sub.slug ?? sub.productSlug ?? "").toLowerCase();
-    if (slug === "business") return "business";
-    if (slug === "pro") return "pro";
-
-    // Check by product ID
-    const productId = String(sub.productId ?? "");
-    if (PRODUCT_TIER_MAP[productId]) return PRODUCT_TIER_MAP[productId];
-
-    // Check by product name
-    const name = String(sub.productName ?? sub.name ?? "").toLowerCase();
-    if (name.includes("business")) return "business";
-    if (name.includes("pro")) return "pro";
-  }
-  return "free";
-}
-
 export function useTier(): TierInfo {
-  // Primary source: Convex DB (updated by webhooks)
+  // Primary: Convex DB (reactive, instant)
   const convexTier = useQuery(api.tiers.get);
+  const syncTier = useMutation(api.tiers.sync);
+
   const [polarTier, setPolarTier] = useState<Tier | null>(null);
   const [polarLoading, setPolarLoading] = useState(false);
 
-  // Use Convex tier if available, otherwise fall back to Polar API
   const tier: Tier = convexTier?.tier ?? polarTier ?? "free";
   const isLoading = convexTier === undefined && polarLoading;
 
-  const fetchTier = useCallback(async () => {
+  // Fetch tier from Polar and sync to Convex
+  const fetchAndSync = useCallback(async () => {
     setPolarLoading(true);
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,45 +83,53 @@ export function useTier(): TierInfo {
       if (state?.data) {
         const subs = state.data.activeSubscriptions ?? state.data.subscriptions ?? [];
         if (Array.isArray(subs) && subs.length > 0) {
-          setPolarTier(detectTier(subs));
+          const detected = detectTier(subs);
+          setPolarTier(detected);
+
+          // Sync to Convex DB so server-side enforcement works
+          if (detected !== (convexTier?.tier ?? "free")) {
+            await syncTier({ tier: detected });
+          }
+        } else if (convexTier?.tier && convexTier.tier !== "free") {
+          // User has no active subscriptions but Convex says they're paid
+          // They may have canceled — sync back to free
+          await syncTier({ tier: "free" });
         }
       }
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
-        console.error("useTier: failed to fetch tier from Polar", err);
+        console.error("useTier: failed to fetch from Polar", err);
       }
     } finally {
       setPolarLoading(false);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convexTier?.tier]);
 
   // Fetch on mount
   useEffect(() => {
-    fetchTier();
-  }, [fetchTier]);
+    fetchAndSync();
+  }, [fetchAndSync]);
 
-  // Refetch when window regains focus (user returns from Polar checkout)
+  // Refetch on window focus (user returns from checkout)
   useEffect(() => {
-    function onFocus() {
-      fetchTier();
-    }
+    function onFocus() { fetchAndSync(); }
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [fetchTier]);
+  }, [fetchAndSync]);
 
-  // Refetch if URL has ?upgraded=true (redirect from checkout)
+  // Refetch on ?upgraded=true
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("upgraded=true")) {
-      // Small delay to let the webhook process
-      const timer = setTimeout(() => fetchTier(), 2000);
+      const timer = setTimeout(() => fetchAndSync(), 1500);
       return () => clearTimeout(timer);
     }
-  }, [fetchTier]);
+  }, [fetchAndSync]);
 
   return {
     tier,
     isLoading,
-    refetch: fetchTier,
+    refetch: fetchAndSync,
     ...TIER_LIMITS[tier],
   };
 }

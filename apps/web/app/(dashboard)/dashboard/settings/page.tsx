@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,18 @@ import { toast } from "sonner";
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { monitors } = useMonitors();
-  const { tier, maxMonitors, description: tierDescription, isLoading: tierLoading } = useTier();
+  const { tier, maxMonitors, description: tierDescription, isLoading: tierLoading, refetch: refetchTier } = useTier();
   const [name, setName] = useState(user?.name ?? "");
+  const [email, setEmail] = useState(user?.email ?? "");
+
+  // Show success toast after returning from Polar checkout
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("upgraded=true")) {
+      toast.success("Welcome to your new plan!", { description: "Your subscription is now active." });
+      // Clean URL
+      window.history.replaceState({}, "", "/dashboard/settings");
+    }
+  }, []);
 
   async function handleCheckout(slug: "pro" | "business") {
     try {
@@ -38,7 +48,6 @@ export default function SettingsPage() {
       toast.error("Checkout unavailable", { description: "Billing is not configured yet" });
     }
   }
-  const [email, setEmail] = useState(user?.email ?? "");
 
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [telegramChatId, setTelegramChatId] = useState("");
