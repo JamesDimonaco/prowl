@@ -28,8 +28,16 @@ import { toast } from "sonner";
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { monitors } = useMonitors();
-  const { tier, maxMonitors } = useTier();
+  const { tier, maxMonitors, isLoading: tierLoading } = useTier();
   const [name, setName] = useState(user?.name ?? "");
+
+  async function handleCheckout(slug: "pro" | "business") {
+    try {
+      await authClient.checkout({ slug });
+    } catch {
+      toast.error("Checkout unavailable", { description: "Billing is not configured yet" });
+    }
+  }
   const [email, setEmail] = useState(user?.email ?? "");
 
   const [emailNotifs, setEmailNotifs] = useState(true);
@@ -317,13 +325,7 @@ export default function SettingsPage() {
                   {tier === "free" && (
                     <Button
                       className="gap-1.5 shadow-md shadow-primary/15"
-                      onClick={async () => {
-                        try {
-                          await authClient.checkout({ slug: "pro" });
-                        } catch {
-                          toast.error("Checkout unavailable", { description: "Billing is not configured yet" });
-                        }
-                      }}
+                      onClick={() => handleCheckout("pro")}
                     >
                       <Sparkles className="h-4 w-4" />
                       Upgrade to Pro
@@ -368,13 +370,7 @@ export default function SettingsPage() {
                   </ul>
                   <Button
                     className="w-full mt-4 gap-1.5"
-                    onClick={async () => {
-                      try {
-                        await authClient.checkout({ slug: "pro" });
-                      } catch {
-                        toast.error("Checkout unavailable");
-                      }
-                    }}
+                    onClick={() => handleCheckout("pro")}
                   >
                     <Sparkles className="h-4 w-4" />
                     Upgrade to Pro
@@ -394,11 +390,7 @@ export default function SettingsPage() {
                     variant="outline"
                     className="w-full mt-4 gap-1.5"
                     onClick={async () => {
-                      try {
-                        await authClient.checkout({ slug: "business" });
-                      } catch {
-                        toast.error("Checkout unavailable");
-                      }
+                      handleCheckout("business");
                     }}
                   >
                     Upgrade to Business

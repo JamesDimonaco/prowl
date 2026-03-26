@@ -35,7 +35,7 @@ interface IntervalSelectorProps {
 }
 
 export function IntervalSelector({ value, onValueChange, disabled }: IntervalSelectorProps) {
-  const { tier } = useTier();
+  const { tier, isLoading } = useTier();
 
   return (
     <Select
@@ -45,7 +45,7 @@ export function IntervalSelector({ value, onValueChange, disabled }: IntervalSel
           onValueChange(v as CheckInterval);
         }
       }}
-      disabled={disabled}
+      disabled={disabled || isLoading}
     >
       <SelectTrigger>
         <SelectValue />

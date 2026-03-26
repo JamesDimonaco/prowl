@@ -26,20 +26,23 @@ export function useTier(): TierInfo {
   useEffect(() => {
     async function fetchTier() {
       try {
-        const state = await (authClient as Record<string, any>).customer?.state?.();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const client = authClient as any;
+        const state = await client.customer?.state?.();
         if (state?.data?.activeSubscriptions) {
           const subs = state.data.activeSubscriptions;
-          // Check for highest tier subscription
-          if (subs.some((s: { productId: string; slug?: string }) => s.slug === "business")) {
+          if (subs.some((s: { slug?: string }) => s.slug === "business")) {
             setTier("business");
-          } else if (subs.some((s: { productId: string; slug?: string }) => s.slug === "pro")) {
+          } else if (subs.some((s: { slug?: string }) => s.slug === "pro")) {
             setTier("pro");
           } else {
             setTier("free");
           }
         }
-      } catch {
-        // No Polar configured or no subscription — stay on free
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("useTier: failed to fetch tier", err);
+        }
       } finally {
         setIsLoading(false);
       }

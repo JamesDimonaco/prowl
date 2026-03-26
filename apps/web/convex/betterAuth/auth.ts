@@ -19,10 +19,13 @@ export const authComponent = createClient<DataModel, typeof schema>(
 );
 
 // Polar billing client
+const polarEnv = process.env.POLAR_ENVIRONMENT;
+const polarServer: "sandbox" | "production" = polarEnv === "production" ? "production" : "sandbox";
+
 const polarClient = process.env.POLAR_ACCESS_TOKEN
   ? new Polar({
       accessToken: process.env.POLAR_ACCESS_TOKEN,
-      server: (process.env.POLAR_ENVIRONMENT as "sandbox" | "production") ?? "sandbox",
+      server: polarServer,
     })
   : null;
 
@@ -49,8 +52,8 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
             authenticatedUsersOnly: true,
           }),
           portal(),
-          webhooks({
-            secret: process.env.POLAR_WEBHOOK_SECRET!,
+          ...(process.env.POLAR_WEBHOOK_SECRET ? [webhooks({
+            secret: process.env.POLAR_WEBHOOK_SECRET,
             onOrderPaid: async (payload) => {
               console.log("[polar] Order paid:", payload.data.id);
             },
@@ -60,7 +63,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
             onSubscriptionCanceled: async (payload) => {
               console.log("[polar] Subscription canceled:", payload.data.id);
             },
-          }),
+          })] : []),
         ],
       })
     );
