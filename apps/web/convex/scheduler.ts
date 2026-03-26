@@ -251,7 +251,9 @@ export const runScheduledChecks = internalAction({
 });
 
 async function runQuickCheck(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: { runMutation: (ref: any, args: any) => Promise<any> },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   monitor: any,
   scraperUrl: string,
   scraperKey: string
@@ -303,7 +305,9 @@ async function runQuickCheck(
 }
 
 async function runFullExtract(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: { runMutation: (ref: any, args: any) => Promise<any> },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   monitor: any,
   scraperUrl: string,
   scraperKey: string
