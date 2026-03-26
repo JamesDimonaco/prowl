@@ -52,7 +52,7 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
                 ? [{ productId: process.env.POLAR_BUSINESS_PRODUCT_ID, slug: "business" }]
                 : []),
             ],
-            successUrl: "/dashboard/settings?upgraded=true",
+            successUrl: `${process.env.SITE_URL ?? "https://pagealert.io"}/dashboard/settings?upgraded=true`,
             authenticatedUsersOnly: true,
           }),
           portal(),
