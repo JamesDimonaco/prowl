@@ -184,8 +184,11 @@ export const runScheduledChecks = internalAction({
             checkResult = await runQuickCheck(ctx, monitor, scraperUrl, scraperKey);
           }
 
-          // Send match email
-          if (checkResult.hasMatch && monitor.userEmail) {
+          // Only email on NEW matches (not when the same match persists across checks)
+          const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
+          const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
+
+          if (isNewMatch && monitor.userEmail) {
             await ctx.runAction(internal.emails.sendMatchAlert, {
               to: monitor.userEmail,
               monitorName: monitor.name,
@@ -194,7 +197,7 @@ export const runScheduledChecks = internalAction({
               matchCount: checkResult.matchCount,
               matches: checkResult.matches,
               totalItems: checkResult.totalItems,
-            });
+            }).catch(() => {});
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Unknown error";

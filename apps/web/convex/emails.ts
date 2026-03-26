@@ -51,25 +51,34 @@ export const sendMatchAlert = internalAction({
     const safeName = esc(args.monitorName);
     const safeHost = esc(safeHostname(args.url));
 
-    const matchList = args.matches
-      .slice(0, 5)
-      .map((m: Record<string, unknown>) => {
-        // Handle quick check results (keyword/price based) vs full extract results
-        if (m.quickCheck) {
-          const kr = m.keywordResults as Record<string, unknown> | undefined;
-          const pr = m.priceResults as Record<string, unknown> | undefined;
-          const keywords = Array.isArray(kr?.included) ? (kr.included as string[]).join(", ") : "";
-          const price = pr?.lowestInRange != null ? ` — from $${esc(Number(pr.lowestInRange).toLocaleString())}` : "";
-          return `<li style="padding:8px 0;border-bottom:1px solid #eee">Keywords matched: ${esc(keywords || "all")}${price}</li>`;
-        }
-        const title = esc(String(m.title ?? m.name ?? "Unknown item"));
-        const price = m.price != null ? ` — $${esc(Number(m.price).toLocaleString())}` : "";
-        return `<li style="padding:8px 0;border-bottom:1px solid #eee">${title}${price}</li>`;
-      })
-      .join("");
+    // Determine if this is a quick check (keyword-based) or full extraction
+    const isQuickCheck = args.matches.length > 0 && (args.matches[0] as Record<string, unknown>)?.quickCheck === true;
 
-    const moreText = args.matchCount > 5 ? `<p style="color:#666;font-size:14px">+${args.matchCount - 5} more matches</p>` : "";
-    const itemsText = args.totalItems > 0 ? ` out of ${args.totalItems} items` : "";
+    let matchList = "";
+    let summaryText = "";
+
+    if (isQuickCheck) {
+      // Quick check: just say keywords were found on the page
+      const kr = (args.matches[0] as Record<string, unknown>)?.keywordResults as Record<string, unknown> | undefined;
+      const pr = (args.matches[0] as Record<string, unknown>)?.priceResults as Record<string, unknown> | undefined;
+      const keywords = Array.isArray(kr?.included) ? (kr.included as string[]).join(", ") : "your keywords";
+      const priceInfo = pr?.lowestInRange != null ? ` Prices from $${esc(Number(pr.lowestInRange).toLocaleString())}.` : "";
+      summaryText = `Your monitor detected <strong>${esc(keywords)}</strong> on the page.${priceInfo}`;
+    } else {
+      // Full extraction: show matched items
+      matchList = args.matches
+        .slice(0, 5)
+        .map((m: Record<string, unknown>) => {
+          const title = esc(String(m.title ?? m.name ?? "Item"));
+          const price = m.price != null ? ` — $${esc(Number(m.price).toLocaleString())}` : "";
+          return `<li style="padding:8px 0;border-bottom:1px solid #eee">${title}${price}</li>`;
+        })
+        .join("");
+      const itemsText = args.totalItems > 0 ? ` out of ${args.totalItems} items` : "";
+      summaryText = `Your monitor found <strong>${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}</strong>${itemsText} on <a href="${safeHref(args.url)}" style="color:#4f46e5;text-decoration:none">${safeHost}</a>.`;
+    }
+
+    const moreText = !isQuickCheck && args.matchCount > 5 ? `<p style="color:#666;font-size:14px">+${args.matchCount - 5} more matches</p>` : "";
 
     const html = `
 <!DOCTYPE html>
@@ -84,10 +93,9 @@ export const sendMatchAlert = internalAction({
       </div>
       <div style="padding:32px">
         <p style="margin:0 0 16px;color:#333;font-size:16px">
-          Your monitor found <strong>${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}</strong>${itemsText} on
-          <a href="${safeHref(args.url)}" style="color:#4f46e5;text-decoration:none">${safeHost}</a>.
+          ${summaryText}
         </p>
-        <ul style="list-style:none;padding:0;margin:0 0 16px">${matchList}</ul>
+        ${matchList ? `<ul style="list-style:none;padding:0;margin:0 0 16px">${matchList}</ul>` : ""}
         ${moreText}
         <div style="margin-top:24px">
           <a href="${safeHref(args.url)}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-right:8px">View on site</a>
