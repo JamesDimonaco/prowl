@@ -121,4 +121,12 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_channel", ["userId", "channel"]),
+
+  userTiers: defineTable({
+    userId: v.string(),
+    tier: v.union(v.literal("free"), v.literal("pro"), v.literal("business")),
+    polarCustomerId: v.optional(v.string()),
+    polarSubscriptionId: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
 });
