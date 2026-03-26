@@ -116,6 +116,11 @@ export const create = mutation({
     const userId = identity.subject;
     const userEmail = identity.email ?? undefined;
 
+    // Enforce free tier interval limit (6h minimum)
+    // TODO: Check user tier when billing is implemented
+    const freeIntervals = ["6h", "24h"];
+    const checkInterval = freeIntervals.includes(args.checkInterval) ? args.checkInterval : "6h";
+
     validateName(args.name);
     validateMonitorUrl(args.url);
     validatePrompt(args.prompt);
@@ -133,14 +138,14 @@ export const create = mutation({
       name: args.name.trim(),
       url: args.url.trim(),
       prompt: args.prompt.trim(),
-      checkInterval: args.checkInterval,
+      checkInterval: checkInterval,
       userId,
       userEmail,
       status: "scanning",
       matchCount: 0,
       checkCount: 0,
       retryCount: 0,
-      nextCheckAt: now + intervalToMs(args.checkInterval),
+      nextCheckAt: now + intervalToMs(checkInterval),
       createdAt: now,
       updatedAt: now,
     });
@@ -217,11 +222,26 @@ export const update = mutation({
     if (fields.url !== undefined) validateMonitorUrl(fields.url);
     if (fields.prompt !== undefined) validatePrompt(fields.prompt);
 
-    const updates: Record<string, unknown> = { updatedAt: Date.now() };
+    // Enforce free tier interval limit
+    // TODO: Check user tier when billing is implemented
+    if (fields.checkInterval !== undefined) {
+      const freeIntervals = ["6h", "24h"];
+      if (!freeIntervals.includes(fields.checkInterval)) {
+        fields.checkInterval = "6h";
+      }
+    }
+
+    const now = Date.now();
+    const updates: Record<string, unknown> = { updatedAt: now };
     for (const [key, value] of Object.entries(fields)) {
       if (value !== undefined) {
         updates[key] = typeof value === "string" ? value.trim() : value;
       }
+    }
+
+    // Recompute nextCheckAt when interval changes so it takes effect immediately
+    if (fields.checkInterval !== undefined) {
+      updates.nextCheckAt = now + intervalToMs(fields.checkInterval);
     }
 
     await ctx.db.patch(id, updates);
