@@ -62,7 +62,8 @@ export const sendMatchAlert = internalAction({
       const kr = (args.matches[0] as Record<string, unknown>)?.keywordResults as Record<string, unknown> | undefined;
       const pr = (args.matches[0] as Record<string, unknown>)?.priceResults as Record<string, unknown> | undefined;
       const keywords = Array.isArray(kr?.included) ? (kr.included as string[]).join(", ") : "your keywords";
-      const priceInfo = pr?.lowestInRange != null ? ` Prices from $${esc(Number(pr.lowestInRange).toLocaleString())}.` : "";
+      const lowestPrice = pr?.lowestInRange != null ? Number(pr.lowestInRange) : NaN;
+      const priceInfo = Number.isFinite(lowestPrice) ? ` Prices from $${esc(lowestPrice.toLocaleString("en-US"))}.` : "";
       summaryText = `Your monitor detected <strong>${esc(keywords)}</strong> on the page.${priceInfo}`;
     } else {
       // Full extraction: show matched items

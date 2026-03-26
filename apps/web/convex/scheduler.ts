@@ -275,7 +275,7 @@ async function runQuickCheck(
   await ctx.runMutation(internal.scheduler.recordCheckResult, {
     monitorId: monitor._id,
     hasNewMatches: hasMatch,
-    matchCount: hasMatch ? (monitor.matchCount ?? 0) + 1 : monitor.matchCount ?? 0,
+    matchCount: hasMatch ? (monitor.matchCount ?? 0) + 1 : 0,
     totalItems: 0,
     matches: hasMatch
       ? [{ quickCheck: true, keywordResults: result.keywordResults, priceResults: result.priceResults }]
