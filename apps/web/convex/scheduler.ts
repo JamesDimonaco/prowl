@@ -3,6 +3,18 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import { intervalToMs, MAX_RETRIES } from "./shared";
 
+/** Filter out blacklisted items from a matches array based on item title/url keys */
+function filterBlacklisted(matches: Record<string, unknown>[], blacklist: string[]): Record<string, unknown>[] {
+  if (!blacklist || blacklist.length === 0) return matches;
+  const blacklistSet = new Set(blacklist);
+  return matches.filter((m) => {
+    // Match the same key logic as getItemKey in @prowl/shared
+    const url = m.url ? String(m.url) : null;
+    const key = url ?? `${String(m.title ?? "")}-${String(m.price ?? "")}`;
+    return !blacklistSet.has(key);
+  });
+}
+
 // Inline change detection for Convex runtime
 function detectChanges(previousItems: Record<string, unknown>[], currentItems: Record<string, unknown>[]) {
   const getTitle = (item: Record<string, unknown>) => String(item.title ?? item.name ?? "").toLowerCase();
@@ -364,20 +376,25 @@ async function runFullExtract(
     return { hasMatch: false, matchCount: 0, matches: [], totalItems: 0 };
   }
 
-  const matchCount = result.matches?.length ?? 0;
+  const allMatches = result.matches ?? [];
   const totalItems = result.totalItems ?? 0;
+
+  // Filter out blacklisted items so they don't count as matches or trigger emails
+  const blacklist = monitor.blacklistedItems ?? [];
+  const filteredMatches = filterBlacklisted(allMatches as Record<string, unknown>[], blacklist);
+  const matchCount = filteredMatches.length;
 
   await ctx.runMutation(internal.scheduler.recordCheckResult, {
     monitorId: monitor._id,
     hasNewMatches: matchCount > 0,
     matchCount,
     totalItems,
-    matches: result.matches ?? [],
+    matches: filteredMatches,
     items: result.schema?.items ?? [],
     schema: result.schema,
   });
 
-  console.log(`[scheduler] Full re-extract ${monitor._id}: ${totalItems} items, ${matchCount} matches`);
+  console.log(`[scheduler] Full re-extract ${monitor._id}: ${totalItems} items, ${matchCount} matches (${allMatches.length - matchCount} blacklisted)`);
 
-  return { hasMatch: matchCount > 0, matchCount, matches: result.matches ?? [], totalItems };
+  return { hasMatch: matchCount > 0, matchCount, matches: filteredMatches, totalItems };
 }
