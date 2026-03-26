@@ -28,7 +28,7 @@ import { toast } from "sonner";
 export default function SettingsPage() {
   const { user, signOut } = useAuth();
   const { monitors } = useMonitors();
-  const { tier, maxMonitors, isLoading: tierLoading } = useTier();
+  const { tier, maxMonitors, description: tierDescription, isLoading: tierLoading } = useTier();
   const [name, setName] = useState(user?.name ?? "");
 
   async function handleCheckout(slug: "pro" | "business") {
@@ -303,6 +303,11 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="billing" className="mt-8 space-y-8">
+          {tierLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (<>
           {/* Current Plan */}
           <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
             <CardHeader className="pb-4">
@@ -316,9 +321,7 @@ export default function SettingsPage() {
                     <Badge variant="outline" className="text-xs">Current plan</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                    {tier === "free" && "3 monitors, 6 hour check interval, email only"}
-                    {tier === "pro" && "25 monitors, 15 min checks, all notification channels"}
-                    {tier === "business" && "Unlimited monitors, 5 min checks, API access"}
+                    {tierDescription}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -427,6 +430,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+          </>)}
         </TabsContent>
       </Tabs>
     </div>

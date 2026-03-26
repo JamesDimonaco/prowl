@@ -20,7 +20,11 @@ export const authComponent = createClient<DataModel, typeof schema>(
 
 // Polar billing client
 const polarEnv = process.env.POLAR_ENVIRONMENT;
-const polarServer: "sandbox" | "production" = polarEnv === "production" ? "production" : "sandbox";
+const polarServer: "sandbox" | "production" = (() => {
+  if (!polarEnv || polarEnv === "sandbox") return "sandbox";
+  if (polarEnv === "production") return "production";
+  throw new Error(`Invalid POLAR_ENVIRONMENT: "${polarEnv}". Must be "sandbox" or "production".`);
+})();
 
 const polarClient = process.env.POLAR_ACCESS_TOKEN
   ? new Polar({

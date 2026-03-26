@@ -5,19 +5,25 @@ import { useState, useEffect } from "react";
 
 export type Tier = "free" | "pro" | "business";
 
+export const TIER_LIMITS: Record<Tier, {
+  maxMonitors: number;
+  minInterval: string;
+  channels: string[];
+  description: string;
+}> = {
+  free: { maxMonitors: 3, minInterval: "6h", channels: ["email"], description: "3 monitors, 6 hour checks, email only" },
+  pro: { maxMonitors: 25, minInterval: "15m", channels: ["email", "telegram", "discord"], description: "25 monitors, 15 min checks, all channels" },
+  business: { maxMonitors: 9999, minInterval: "5m", channels: ["email", "telegram", "discord", "webhook"], description: "Unlimited monitors, 5 min checks, API access" },
+};
+
 interface TierInfo {
   tier: Tier;
   isLoading: boolean;
   maxMonitors: number;
   minInterval: string;
   channels: string[];
+  description: string;
 }
-
-const TIER_LIMITS: Record<Tier, { maxMonitors: number; minInterval: string; channels: string[] }> = {
-  free: { maxMonitors: 3, minInterval: "6h", channels: ["email"] },
-  pro: { maxMonitors: 25, minInterval: "15m", channels: ["email", "telegram", "discord"] },
-  business: { maxMonitors: 999, minInterval: "5m", channels: ["email", "telegram", "discord", "webhook"] },
-};
 
 export function useTier(): TierInfo {
   const [tier, setTier] = useState<Tier>("free");
