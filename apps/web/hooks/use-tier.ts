@@ -59,17 +59,29 @@ interface TierInfo {
   refetch: () => void;
 }
 
+// Pick the higher-privilege tier between two sources
+const TIER_RANK: Record<Tier, number> = { free: 0, pro: 1, business: 2 };
+function higherTier(a: Tier, b: Tier): Tier {
+  return TIER_RANK[a] >= TIER_RANK[b] ? a : b;
+}
+
 export function useTier(): TierInfo {
-  // Primary: Convex DB (reactive, instant)
+  // Primary: Convex DB (reactive, updated by webhooks)
   const convexTier = useQuery(api.tiers.get);
 
   const [polarTier, setPolarTier] = useState<Tier | null>(null);
   const [polarLoading, setPolarLoading] = useState(false);
 
-  const tier: Tier = convexTier?.tier ?? polarTier ?? "free";
-  const isLoading = convexTier === undefined && polarLoading;
+  // Use the higher of Convex or Polar tier (handles stale Convex before webhook fires)
+  const convexValue = convexTier?.tier ?? null;
+  const tier: Tier = convexValue && polarTier
+    ? higherTier(convexValue, polarTier)
+    : convexValue ?? polarTier ?? "free";
 
-  // Fetch tier from Polar as a fallback read (webhooks populate Convex)
+  // Loading if either source hasn't resolved yet
+  const isLoading = convexTier === undefined || polarLoading;
+
+  // Fetch tier from Polar as a fallback/fresh read
   const fetchAndSync = useCallback(async () => {
     setPolarLoading(true);
     try {
@@ -80,8 +92,10 @@ export function useTier(): TierInfo {
       if (state?.data) {
         const subs = state.data.activeSubscriptions ?? state.data.subscriptions ?? [];
         if (Array.isArray(subs) && subs.length > 0) {
-          const detected = detectTier(subs);
-          setPolarTier(detected);
+          setPolarTier(detectTier(subs));
+        } else {
+          // No active subscriptions — user is free
+          setPolarTier("free");
         }
       }
     } catch (err) {
@@ -91,8 +105,7 @@ export function useTier(): TierInfo {
     } finally {
       setPolarLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convexTier?.tier]);
+  }, []);
 
   // Fetch on mount
   useEffect(() => {
