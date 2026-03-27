@@ -3,11 +3,33 @@ import { mutation, query } from "./_generated/server";
 import { intervalToMs, MAX_RETRIES } from "./shared";
 
 // ---- Resource Limits ----
-const MAX_MONITORS_PER_USER = 50;
 const MAX_URL_LENGTH = 2048;
 const MAX_NAME_LENGTH = 200;
 const MAX_PROMPT_LENGTH = 2000;
 const MAX_RESULTS_LIMIT = 100;
+
+type Tier = "free" | "pro" | "business";
+
+const TIER_LIMITS: Record<Tier, { maxMonitors: number; allowedIntervals: string[] }> = {
+  free: { maxMonitors: 3, allowedIntervals: ["6h", "24h"] },
+  pro: { maxMonitors: 25, allowedIntervals: ["15m", "30m", "1h", "6h", "24h"] },
+  business: { maxMonitors: 9999, allowedIntervals: ["5m", "15m", "30m", "1h", "6h", "24h"] },
+};
+
+async function getUserTier(ctx: { db: any }, userId: string): Promise<Tier> {
+  const record = await ctx.db
+    .query("userTiers")
+    .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+    .unique();
+  return (record?.tier as Tier) ?? "free";
+}
+
+type CheckInterval = "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
+
+function clampInterval(interval: string, tier: Tier): CheckInterval {
+  const allowed = TIER_LIMITS[tier].allowedIntervals;
+  return (allowed.includes(interval) ? interval : allowed[0]) as CheckInterval;
+}
 
 async function getAuthUserId(ctx: { auth: { getUserIdentity: () => Promise<{ subject: string } | null> } }) {
   const identity = await ctx.auth.getUserIdentity();
@@ -116,10 +138,10 @@ export const create = mutation({
     const userId = identity.subject;
     const userEmail = identity.email ?? undefined;
 
-    // Enforce free tier interval limit (6h minimum)
-    // TODO: Check user tier when billing is implemented
-    const freeIntervals = ["6h", "24h"];
-    const checkInterval = freeIntervals.includes(args.checkInterval) ? args.checkInterval : "6h";
+    // Dynamic tier-based enforcement
+    const tier = await getUserTier(ctx, userId);
+    const limits = TIER_LIMITS[tier];
+    const checkInterval = clampInterval(args.checkInterval, tier);
 
     validateName(args.name);
     validateMonitorUrl(args.url);
@@ -129,8 +151,8 @@ export const create = mutation({
       .query("monitors")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .collect();
-    if (existingMonitors.length >= MAX_MONITORS_PER_USER) {
-      throw new Error(`You can have at most ${MAX_MONITORS_PER_USER} monitors. Please delete unused monitors first.`);
+    if (existingMonitors.length >= limits.maxMonitors) {
+      throw new Error(`Your ${tier} plan allows ${limits.maxMonitors} monitors. Upgrade for more.`);
     }
 
     const now = Date.now();
@@ -222,13 +244,10 @@ export const update = mutation({
     if (fields.url !== undefined) validateMonitorUrl(fields.url);
     if (fields.prompt !== undefined) validatePrompt(fields.prompt);
 
-    // Enforce free tier interval limit
-    // TODO: Check user tier when billing is implemented
+    // Dynamic tier-based interval enforcement
     if (fields.checkInterval !== undefined) {
-      const freeIntervals = ["6h", "24h"];
-      if (!freeIntervals.includes(fields.checkInterval)) {
-        fields.checkInterval = "6h";
-      }
+      const tier = await getUserTier(ctx, userId);
+      fields.checkInterval = clampInterval(fields.checkInterval, tier) as typeof fields.checkInterval;
     }
 
     const now = Date.now();

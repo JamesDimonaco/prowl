@@ -10,13 +10,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
+import { useTier } from "@/hooks/use-tier";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export function Navbar() {
   const router = useRouter();
   const { user, signOut } = useAuth();
+  const { tier } = useTier();
 
   const initials = user?.name?.charAt(0)?.toUpperCase() ?? user?.email?.charAt(0)?.toUpperCase() ?? "?";
 
@@ -60,7 +63,18 @@ export function Navbar() {
             <DropdownMenuContent className="w-56" align="end">
               <div className="flex items-center gap-2 p-2">
                 <div className="flex flex-col space-y-0.5">
-                  <p className="text-sm font-medium">{user?.name ?? "User"}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{user?.name ?? "User"}</p>
+                    {tier !== "free" && (
+                      <Badge className={`text-[10px] px-1.5 py-0 ${
+                        tier === "business"
+                          ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          : "bg-primary/10 text-primary border-primary/20"
+                      }`}>
+                        {tier === "business" ? "Business" : "Pro"}
+                      </Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </div>

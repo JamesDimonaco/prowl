@@ -33,10 +33,18 @@ const polarClient = process.env.POLAR_ACCESS_TOKEN
     })
   : null;
 
+const PRO_PRODUCT_ID = process.env.POLAR_PRO_PRODUCT_ID;
+const BUSINESS_PRODUCT_ID = process.env.POLAR_BUSINESS_PRODUCT_ID;
+
+function productIdToTier(productId: string): "pro" | "business" | null {
+  if (productId === BUSINESS_PRODUCT_ID) return "business";
+  if (productId === PRO_PRODUCT_ID) return "pro";
+  return null;
+}
+
 export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
   const plugins: BetterAuthOptions["plugins"] = [convex({ authConfig })];
 
-  // Add Polar billing plugin if configured
   if (polarClient) {
     plugins.push(
       polar({
@@ -45,12 +53,8 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
         use: [
           checkout({
             products: [
-              ...(process.env.POLAR_PRO_PRODUCT_ID
-                ? [{ productId: process.env.POLAR_PRO_PRODUCT_ID, slug: "pro" }]
-                : []),
-              ...(process.env.POLAR_BUSINESS_PRODUCT_ID
-                ? [{ productId: process.env.POLAR_BUSINESS_PRODUCT_ID, slug: "business" }]
-                : []),
+              ...(PRO_PRODUCT_ID ? [{ productId: PRO_PRODUCT_ID, slug: "pro" }] : []),
+              ...(BUSINESS_PRODUCT_ID ? [{ productId: BUSINESS_PRODUCT_ID, slug: "business" }] : []),
             ],
             successUrl: `${process.env.SITE_URL ?? "https://pagealert.io"}/dashboard/settings?upgraded=true`,
             authenticatedUsersOnly: true,
@@ -58,14 +62,24 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
           portal(),
           ...(process.env.POLAR_WEBHOOK_SECRET ? [webhooks({
             secret: process.env.POLAR_WEBHOOK_SECRET,
+
+            onSubscriptionCreated: async (payload) => {
+              const sub = payload.data;
+              const tier = productIdToTier(sub.productId);
+              console.log("[polar] Subscription created:", sub.id, "product:", sub.productId, "tier:", tier, "customer:", sub.customerId);
+              // Tier sync happens client-side via useTier() refetch on window focus
+              // and via the ?upgraded=true redirect param
+            },
+
+            onSubscriptionCanceled: async (payload) => {
+              const sub = payload.data;
+              console.log("[polar] Subscription canceled:", sub.id);
+              // User will be downgraded when subscription.revoked fires
+              // or when the billing period ends
+            },
+
             onOrderPaid: async (payload) => {
               console.log("[polar] Order paid:", payload.data.id);
-            },
-            onSubscriptionCreated: async (payload) => {
-              console.log("[polar] Subscription created:", payload.data.id);
-            },
-            onSubscriptionCanceled: async (payload) => {
-              console.log("[polar] Subscription canceled:", payload.data.id);
             },
           })] : []),
         ],

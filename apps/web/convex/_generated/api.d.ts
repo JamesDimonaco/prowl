@@ -17,6 +17,7 @@ import type * as monitors from "../monitors.js";
 import type * as notifications from "../notifications.js";
 import type * as scheduler from "../scheduler.js";
 import type * as shared from "../shared.js";
+import type * as tiers from "../tiers.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   scheduler: typeof scheduler;
   shared: typeof shared;
+  tiers: typeof tiers;
 }>;
 
 /**
