@@ -71,7 +71,11 @@ export default function PrivacyPage() {
           <p>We use HTTPS for all communications, secure authentication via Better Auth with OAuth providers, and encrypt sensitive data at rest via our infrastructure providers.</p>
 
           <h2>Contact</h2>
-          <p>For privacy questions, email <a href="mailto:privacy@pagealert.io" className="text-primary hover:underline">privacy@pagealert.io</a>.</p>
+          <p>For any questions about your data or this policy, email <a href="mailto:dimonaco.james@gmail.com" className="text-primary hover:underline">dimonaco.james@gmail.com</a>.</p>
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-border/20">
+          <Link href="/" className="text-sm text-primary hover:underline">&larr; Back to PageAlert</Link>
         </div>
       </main>
     </div>

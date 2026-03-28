@@ -82,7 +82,11 @@ export default function TermsPage() {
           <p>These terms are governed by the laws of the United Kingdom.</p>
 
           <h2>Contact</h2>
-          <p>Questions about these terms? Email <a href="mailto:legal@pagealert.io" className="text-primary hover:underline">legal@pagealert.io</a>.</p>
+          <p>Questions about these terms? Email <a href="mailto:dimonaco.james@gmail.com" className="text-primary hover:underline">dimonaco.james@gmail.com</a>.</p>
+        </div>
+
+        <div className="mt-12 pt-8 border-t border-border/20">
+          <Link href="/" className="text-sm text-primary hover:underline">&larr; Back to PageAlert</Link>
         </div>
       </main>
     </div>
