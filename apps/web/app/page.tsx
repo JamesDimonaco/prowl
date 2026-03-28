@@ -18,10 +18,10 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground sm:size-default">Sign in</Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">Sign in</Button>
             </Link>
             <Link href="/login">
-              <Button size="sm" className="gap-2 sm:size-default">
+              <Button size="sm" className="gap-2">
                 Get Started
                 <ArrowRight className="h-4 w-4 hidden sm:inline" />
               </Button>
@@ -66,9 +66,11 @@ export default function LandingPage() {
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </Link>
-                <Button variant="outline" size="lg" className="h-12 px-8 text-base font-medium w-full sm:w-auto">
-                  See how it works
-                </Button>
+                <a href="#how-it-works" className="w-full sm:w-auto">
+                  <Button variant="outline" size="lg" className="h-12 px-8 text-base font-medium w-full sm:w-auto">
+                    See how it works
+                  </Button>
+                </a>
               </div>
             </div>
 
@@ -100,7 +102,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="border-t border-border/30 bg-card/20">
+        <section id="how-it-works" className="border-t border-border/30 bg-card/20 scroll-mt-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 sm:py-28">
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight leading-tight">How it works</h2>
@@ -174,7 +176,7 @@ export default function LandingPage() {
                   ],
                 },
                 {
-                  name: "Business",
+                  name: "Max",
                   price: "$29",
                   features: [
                     "Unlimited monitors",
@@ -246,11 +248,11 @@ export default function LandingPage() {
                 },
                 {
                   q: "How often does PageAlert check my pages?",
-                  a: "Check frequency depends on your plan. Free accounts check every 6 hours, Pro every 15 minutes, and Business every 5 minutes. You choose the frequency per monitor.",
+                  a: "Check frequency depends on your plan. Free accounts check every 6 hours, Pro every 15 minutes, and Max every 5 minutes. You choose the frequency per monitor.",
                 },
                 {
                   q: "How will I be notified when something changes?",
-                  a: "Email notifications are included on all plans. Pro and Business plans also support Telegram and Discord notifications. You'll receive detailed alerts with what matched, prices, and direct links.",
+                  a: "Email notifications are included on all plans. Pro and Max plans also support Telegram and Discord notifications. You'll receive detailed alerts with what matched, prices, and direct links.",
                 },
                 {
                   q: "Is there a free plan?",

@@ -49,7 +49,7 @@ export default function SettingsPage() {
     }
   }, [refetchTier]);
 
-  async function handleCheckout(slug: "pro" | "business") {
+  async function handleCheckout(slug: "pro" | "max") {
     trackUpgradePromptClicked({ plan: slug, currentTier: tier });
     try {
       await authClient.checkout({ slug });
@@ -404,7 +404,7 @@ export default function SettingsPage() {
               </Card>
               <Card className="border-border/30 bg-card/50 shadow-sm">
                 <CardContent className="p-6">
-                  <h3 className="text-lg font-bold mb-3">Business</h3>
+                  <h3 className="text-lg font-bold mb-3">Max</h3>
                   <p className="text-3xl font-bold">$29<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                     <li>Unlimited monitors</li>
@@ -415,10 +415,10 @@ export default function SettingsPage() {
                     variant="outline"
                     className="w-full mt-4 gap-1.5"
                     onClick={async () => {
-                      handleCheckout("business");
+                      handleCheckout("max");
                     }}
                   >
-                    Upgrade to Business
+                    Upgrade to Max
                   </Button>
                 </CardContent>
               </Card>

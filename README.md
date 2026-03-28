@@ -36,7 +36,7 @@ PageAlert monitors any website using AI. Paste a URL, describe what you're looki
 
 ## Project Structure
 
-```
+```text
 prowl/
 ├── apps/
 │   ├── web/              # Next.js app (frontend + Convex backend)
@@ -87,7 +87,7 @@ Copy `.env.example` and fill in your values. See the [infrastructure doc](https:
 - **AI insights** — confidence scores, match signals, and page accessibility notices
 - **Debug logs** — full scrape history with raw AI responses for troubleshooting
 - **Multi-currency** — detects and displays prices in the correct currency
-- **Subscription billing** — Free, Pro, and Business tiers via Polar
+- **Subscription billing** — Free, Pro, and Max tiers via Polar
 
 ## License
 
