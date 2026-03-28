@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Radar, ArrowRight, Zap, Globe, Bell, Shield } from "lucide-react";
 import Link from "next/link";
 
@@ -17,14 +17,12 @@ export default function LandingPage() {
             <span className="text-xl font-bold tracking-tight">PageAlert</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">Sign in</Button>
+            <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground hover:text-foreground" })}>
+              Sign in
             </Link>
-            <Link href="/login">
-              <Button size="sm" className="gap-2">
-                Get Started
-                <ArrowRight className="h-4 w-4 hidden sm:inline" />
-              </Button>
+            <Link href="/login" className={buttonVariants({ size: "sm", className: "gap-2" })}>
+              Get Started
+              <ArrowRight className="h-4 w-4 hidden sm:inline" />
             </Link>
           </div>
         </div>
@@ -60,11 +58,9 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/login" className="w-full sm:w-auto">
-                  <Button size="lg" className="gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto">
-                    Start Monitoring
-                    <ArrowRight className="h-5 w-5" />
-                  </Button>
+                <Link href="/login" className={buttonVariants({ size: "lg", className: "gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto" })}>
+                  Start Monitoring
+                  <ArrowRight className="h-5 w-5" />
                 </Link>
                 <a href="#how-it-works" className="w-full sm:w-auto">
                   <Button variant="outline" size="lg" className="h-12 px-8 text-base font-medium w-full sm:w-auto">
@@ -212,13 +208,11 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/login" className="block mt-8">
-                    <Button
-                      variant={plan.popular ? "default" : "outline"}
-                      className={`w-full ${plan.popular ? "shadow-md shadow-primary/20" : ""}`}
-                    >
-                      Get started
-                    </Button>
+                  <Link href="/login" className={buttonVariants({
+                    variant: plan.popular ? "default" : "outline",
+                    className: `w-full mt-8 ${plan.popular ? "shadow-md shadow-primary/20" : ""}`,
+                  })}>
+                    Get started
                   </Link>
                 </div>
               ))}

@@ -64,7 +64,7 @@ export default function PrivacyPage() {
             <li><strong>Access</strong> your data — view all your monitors and results in the dashboard</li>
             <li><strong>Delete</strong> your data — delete individual monitors or your entire account from Settings</li>
             <li><strong>Export</strong> your data — contact us and we will provide your data</li>
-            <li><strong>Opt out</strong> of analytics — use a browser Do Not Track setting or ad blocker</li>
+            <li><strong>Opt out</strong> of analytics — use a browser ad blocker or disable cookies</li>
           </ul>
 
           <h2>Security</h2>
