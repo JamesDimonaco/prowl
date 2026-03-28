@@ -25,8 +25,6 @@ import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import {
-  trackCheckoutStarted,
-  trackCheckoutCompleted,
   trackUpgradePromptClicked,
   trackTestEmailSent,
   trackNotificationChannelToggled,
@@ -42,7 +40,6 @@ export default function SettingsPage() {
   // Show success toast after returning from Polar checkout
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("upgraded=true")) {
-      trackCheckoutCompleted({ plan: "paid", price: 0 }); // Price not known here, tracked for funnel
       toast.success("Welcome to your new plan!", { description: "Your subscription is now active." });
       refetchTier();
       const timer = setTimeout(() => {
@@ -53,8 +50,6 @@ export default function SettingsPage() {
   }, [refetchTier]);
 
   async function handleCheckout(slug: "pro" | "business") {
-    const price = slug === "pro" ? 9 : 29;
-    trackCheckoutStarted({ plan: slug, price });
     trackUpgradePromptClicked({ plan: slug, currentTier: tier });
     try {
       await authClient.checkout({ slug });

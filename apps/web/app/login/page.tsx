@@ -50,7 +50,6 @@ export default function LoginPage() {
 
   async function handleOAuth(provider: "google" | "github") {
     setLoading(true);
-    trackSignIn({ method: provider });
     try {
       await authClient.signIn.social({
         provider,

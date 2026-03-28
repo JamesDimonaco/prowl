@@ -31,13 +31,11 @@ export default function DashboardPage() {
 
   // Sync monitor count to PostHog for cohort analysis
   useEffect(() => {
-    if (monitors.length >= 0) {
-      setUserProperties({
-        monitor_count: monitors.length,
-        active_monitors: monitors.filter((m) => m.status === "active").length,
-      });
-    }
-  }, [monitors.length]);
+    setUserProperties({
+      monitor_count: monitors.length,
+      active_monitors: monitors.filter((m) => m.status === "active").length,
+    });
+  }, [monitors]);
 
   async function handleRescan(monitorId: Id<"monitors">) {
     const monitor = monitors.find((m) => m._id === monitorId);

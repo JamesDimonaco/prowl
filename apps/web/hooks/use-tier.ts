@@ -129,12 +129,10 @@ export function useTier(): TierInfo {
   }, [fetchAndSync]);
 
   // Sync tier to PostHog user properties whenever it changes
-  const prevTierRef = useRef(tier);
+  const prevTierRef = useRef<Tier | null>(null);
   useEffect(() => {
-    if (tier !== prevTierRef.current) {
+    if (!isLoading && tier !== prevTierRef.current) {
       prevTierRef.current = tier;
-    }
-    if (!isLoading) {
       setUserProperties({ tier, plan: tier });
     }
   }, [tier, isLoading]);
