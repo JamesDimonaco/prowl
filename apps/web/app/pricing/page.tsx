@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { buttonVariants } from "@/components/ui/button";
 import { Radar, Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { PLANS, buildOffersJsonLd } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -9,53 +10,6 @@ export const metadata: Metadata = {
     "Simple, transparent pricing for AI-powered website monitoring. Start free with 3 monitors. Upgrade to Pro or Max for faster checks and more monitors.",
   alternates: { canonical: "https://pagealert.io/pricing" },
 };
-
-const plans = [
-  {
-    name: "Free",
-    price: 0,
-    period: "forever",
-    description: "Get started with basic monitoring",
-    features: [
-      "3 monitors",
-      "6 hour check interval",
-      "Email notifications",
-      "AI-powered extraction",
-      "Change detection",
-    ],
-  },
-  {
-    name: "Pro",
-    price: 9,
-    period: "month",
-    popular: true,
-    description: "For power users who need faster checks",
-    features: [
-      "25 monitors",
-      "15 minute check interval",
-      "Email, Telegram & Discord",
-      "Priority scraping",
-      "AI-powered extraction",
-      "Change detection",
-    ],
-  },
-  {
-    name: "Max",
-    price: 29,
-    period: "month",
-    description: "Unlimited monitoring with API access",
-    features: [
-      "Unlimited monitors",
-      "5 minute check interval",
-      "All notification channels",
-      "Webhook notifications",
-      "API access",
-      "Priority scraping",
-      "AI-powered extraction",
-      "Change detection",
-    ],
-  },
-];
 
 const pricingJsonLd = {
   "@context": "https://schema.org",
@@ -66,24 +20,7 @@ const pricingJsonLd = {
     "@type": "SoftwareApplication",
     name: "PageAlert",
     applicationCategory: "WebApplication",
-    offers: plans.map((plan) => ({
-      "@type": "Offer",
-      name: plan.name,
-      price: String(plan.price),
-      priceCurrency: "USD",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: String(plan.price),
-        priceCurrency: "USD",
-        unitCode: "MON",
-        billingDuration: plan.period === "forever" ? undefined : "P1M",
-        referenceQuantity: {
-          "@type": "QuantitativeValue",
-          value: 1,
-        },
-      },
-      description: plan.description,
-    })),
+    offers: buildOffersJsonLd(),
   },
 };
 
@@ -128,7 +65,7 @@ export default function PricingPage() {
         </div>
 
         <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto">
-          {plans.map((plan) => (
+          {PLANS.map((plan) => (
             <div
               key={plan.name}
               className={`rounded-xl p-8 transition-all ${

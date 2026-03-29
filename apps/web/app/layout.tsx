@@ -5,6 +5,7 @@ import { ConvexClientProvider } from "@/components/convex-provider";
 import { PostHogProvider } from "@/components/posthog-provider";
 import { getToken } from "@/lib/auth-server";
 import { Suspense } from "react";
+import { buildOffersJsonLd } from "@/lib/plans";
 import "./globals.css";
 
 const inter = Inter({
@@ -104,49 +105,7 @@ const jsonLd = {
   description: DESCRIPTION,
   applicationCategory: "WebApplication",
   operatingSystem: "Any",
-  offers: [
-    {
-      "@type": "Offer",
-      name: "Free",
-      price: "0",
-      priceCurrency: "USD",
-      description: "3 monitors, 6 hour check interval, email notifications",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: "0",
-        priceCurrency: "USD",
-        unitCode: "MON",
-      },
-    },
-    {
-      "@type": "Offer",
-      name: "Pro",
-      price: "9",
-      priceCurrency: "USD",
-      description: "25 monitors, 15 minute checks, all notification channels",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: "9",
-        priceCurrency: "USD",
-        unitCode: "MON",
-        billingDuration: "P1M",
-      },
-    },
-    {
-      "@type": "Offer",
-      name: "Max",
-      price: "29",
-      priceCurrency: "USD",
-      description: "Unlimited monitors, 5 minute checks, API access, webhooks",
-      priceSpecification: {
-        "@type": "UnitPriceSpecification",
-        price: "29",
-        priceCurrency: "USD",
-        unitCode: "MON",
-        billingDuration: "P1M",
-      },
-    },
-  ],
+  offers: buildOffersJsonLd(),
   featureList: [
     "AI-powered web page monitoring",
     "Natural language search — describe what you want",

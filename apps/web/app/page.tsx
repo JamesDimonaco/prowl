@@ -7,7 +7,8 @@ import { authClient } from "@/lib/auth-client";
 
 export default function LandingPage() {
   const session = authClient.useSession();
-  const isLoggedIn = !!session.data?.user;
+  const isLoggedIn = !session.isPending && !!session.data?.user;
+  const ctaHref = isLoggedIn ? "/dashboard" : "/login";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -71,8 +72,8 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/login" className={buttonVariants({ size: "lg", className: "gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto" })}>
-                  Start Monitoring
+                <Link href={ctaHref} className={buttonVariants({ size: "lg", className: "gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto" })}>
+                  {isLoggedIn ? "Go to Dashboard" : "Start Monitoring"}
                   <ArrowRight className="h-5 w-5" />
                 </Link>
                 <a href="#how-it-works" className="w-full sm:w-auto">
@@ -221,11 +222,11 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href="/login" className={buttonVariants({
+                  <Link href={ctaHref} className={buttonVariants({
                     variant: plan.popular ? "default" : "outline",
                     className: `w-full mt-8 ${plan.popular ? "shadow-md shadow-primary/20" : ""}`,
                   })}>
-                    Get started
+                    {isLoggedIn ? "Go to Dashboard" : "Get started"}
                   </Link>
                 </div>
               ))}
