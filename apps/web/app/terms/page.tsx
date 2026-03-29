@@ -4,7 +4,9 @@ import { Radar } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Terms and conditions for using PageAlert.",
+  description:
+    "Terms and conditions for using PageAlert — AI-powered website monitoring. Covers acceptable use, billing, data accuracy, and liability.",
+  alternates: { canonical: "https://pagealert.io/terms" },
 };
 
 export default function TermsPage() {

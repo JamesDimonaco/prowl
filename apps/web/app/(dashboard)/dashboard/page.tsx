@@ -12,7 +12,7 @@ import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { trackMonitorDeleted, trackMonitorPaused, trackMonitorResumed, setUserProperties } from "@/lib/posthog";
+import { trackMonitorDeleted, trackMonitorPaused, trackMonitorResumed, setUserProperties, captureException } from "@/lib/posthog";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import {
   Select,
@@ -84,14 +84,14 @@ export default function DashboardPage() {
         aiConfidence: insights?.confidence, aiUnderstanding: insights?.understanding,
         aiMatchSignal: insights?.matchSignal, aiNoMatchSignal: insights?.noMatchSignal,
         aiNotices: insights?.notices, matchConditions: json.schema?.matchConditions,
-      }).catch(() => {});
+      }).catch((e) => captureException(e, { context: "createLog_success", monitorId }));
       toast.success("Rescan complete", {
         description: `${totalItems} items, ${matchCount} matches`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rescan failed";
       const durationMs = Date.now() - startTime;
-      await saveScanError({ id: monitorId, error: msg }).catch(() => {});
+      await saveScanError({ id: monitorId, error: msg }).catch((e) => captureException(e, { context: "saveScanError", monitorId }));
       await createLog({
         monitorId,
         monitorName: monitor.name,
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         status: "error" as const,
         durationMs,
         error: msg,
-      }).catch(() => {});
+      }).catch((e) => captureException(e, { context: "createLog_error", monitorId }));
       toast.error("Rescan failed", { description: msg });
     }
   }

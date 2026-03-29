@@ -111,6 +111,12 @@ const jsonLd = {
       price: "0",
       priceCurrency: "USD",
       description: "3 monitors, 6 hour check interval, email notifications",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: "0",
+        priceCurrency: "USD",
+        unitCode: "MON",
+      },
     },
     {
       "@type": "Offer",
@@ -118,6 +124,13 @@ const jsonLd = {
       price: "9",
       priceCurrency: "USD",
       description: "25 monitors, 15 minute checks, all notification channels",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: "9",
+        priceCurrency: "USD",
+        unitCode: "MON",
+        billingDuration: "P1M",
+      },
     },
     {
       "@type": "Offer",
@@ -125,6 +138,13 @@ const jsonLd = {
       price: "29",
       priceCurrency: "USD",
       description: "Unlimited monitors, 5 minute checks, API access, webhooks",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: "29",
+        priceCurrency: "USD",
+        unitCode: "MON",
+        billingDuration: "P1M",
+      },
     },
   ],
   featureList: [

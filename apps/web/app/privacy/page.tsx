@@ -4,7 +4,9 @@ import { Radar } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
-  description: "How PageAlert collects, uses, and protects your data.",
+  description:
+    "Learn how PageAlert collects, uses, and protects your data. We use Convex, PostHog, and Resend — no data is sold to third parties.",
+  alternates: { canonical: "https://pagealert.io/privacy" },
 };
 
 export default function PrivacyPage() {
