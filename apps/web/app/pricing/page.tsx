@@ -18,8 +18,8 @@ const pricingJsonLd = {
   description: "Pricing plans for PageAlert AI-powered website monitoring",
   mainEntity: {
     "@type": "SoftwareApplication",
+    "@id": "https://pagealert.io/#app",
     name: "PageAlert",
-    applicationCategory: "WebApplication",
     offers: buildOffersJsonLd(),
   },
 };

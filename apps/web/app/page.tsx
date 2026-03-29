@@ -4,6 +4,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Radar, ArrowRight, Zap, Globe, Bell, Shield } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { PLANS } from "@/lib/plans";
 
 export default function LandingPage() {
   const session = authClient.useSession();
@@ -168,34 +169,7 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-8 md:grid-cols-3 max-w-4xl mx-auto">
-              {[
-                {
-                  name: "Free",
-                  price: "$0",
-                  features: ["3 monitors", "6 hour checks", "Email notifications"],
-                },
-                {
-                  name: "Pro",
-                  price: "$9",
-                  popular: true,
-                  features: [
-                    "25 monitors",
-                    "15 minute checks",
-                    "All notification channels",
-                    "Priority scraping",
-                  ],
-                },
-                {
-                  name: "Max",
-                  price: "$29",
-                  features: [
-                    "Unlimited monitors",
-                    "5 minute checks",
-                    "All channels + webhooks",
-                    "API access",
-                  ],
-                },
-              ].map((plan) => (
+              {PLANS.map((plan) => (
                 <div
                   key={plan.name}
                   className={`rounded-xl p-8 transition-all ${
@@ -211,11 +185,11 @@ export default function LandingPage() {
                   )}
                   <h3 className="text-lg font-semibold">{plan.name}</h3>
                   <p className="mt-3">
-                    <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+                    <span className="text-4xl font-bold tracking-tight">${plan.price}</span>
                     <span className="text-sm text-muted-foreground font-medium">/mo</span>
                   </p>
                   <ul className="mt-8 space-y-3">
-                    {plan.features.map((f) => (
+                    {plan.features.slice(0, 4).map((f) => (
                       <li key={f} className="flex items-center gap-2.5 text-sm text-foreground/80">
                         <Shield className="h-4 w-4 text-primary/70 shrink-0" />
                         {f}

@@ -100,6 +100,7 @@ export const metadata: Metadata = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
+  "@id": `${SITE_URL}/#app`,
   name: SITE_NAME,
   url: SITE_URL,
   description: DESCRIPTION,
