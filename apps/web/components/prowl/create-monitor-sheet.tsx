@@ -97,6 +97,13 @@ export function CreateMonitorSheet({
     };
   }, [step]);
 
+  // Reset form when opening for a new monitor (not resuming a scan)
+  useEffect(() => {
+    if (open && !activeMonitorId && !isScanning) {
+      resetForm();
+    }
+  }, [open, activeMonitorId, isScanning]);
+
   // When monitor loads with schema, init edited conditions
   useEffect(() => {
     if (monitor?.schema?.matchConditions && !editedConditions) {
