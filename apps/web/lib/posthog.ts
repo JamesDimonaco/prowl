@@ -213,6 +213,14 @@ export function trackSignOut() {
   trackEvent("sign_out");
 }
 
+// ---- Error tracking ----
+
+export function captureException(error: unknown, context?: Record<string, unknown>) {
+  if (!initialized) return;
+  const err = error instanceof Error ? error : new Error(String(error));
+  posthog.captureException(err, context);
+}
+
 // ---- Helpers ----
 
 function safeDomain(url: string): string {

@@ -1,0 +1,36 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+.next
+**/dist
+**/.turbo
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Web app (not needed for scraper image)
+apps/web
+
+# Docker files themselves
+Dockerfile*
+docker-compose.yml
+.dockerignore
+
+# Misc
+README.md
+LICENSE
+*.md

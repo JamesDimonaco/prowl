@@ -97,6 +97,15 @@ export function CreateMonitorSheet({
     };
   }, [step]);
 
+  // Reset form when the sheet opens for a new monitor (false → true transition)
+  const prevOpenRef = useRef(open);
+  useEffect(() => {
+    if (open && !prevOpenRef.current && !activeMonitorId && !isScanning) {
+      resetForm();
+    }
+    prevOpenRef.current = open;
+  }, [open, activeMonitorId, isScanning]);
+
   // When monitor loads with schema, init edited conditions
   useEffect(() => {
     if (monitor?.schema?.matchConditions && !editedConditions) {

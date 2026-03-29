@@ -5,6 +5,7 @@ import { ConvexClientProvider } from "@/components/convex-provider";
 import { PostHogProvider } from "@/components/posthog-provider";
 import { getToken } from "@/lib/auth-server";
 import { Suspense } from "react";
+import { buildOffersJsonLd } from "@/lib/plans";
 import "./globals.css";
 
 const inter = Inter({
@@ -99,34 +100,13 @@ export const metadata: Metadata = {
 const jsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
+  "@id": `${SITE_URL}/#app`,
   name: SITE_NAME,
   url: SITE_URL,
   description: DESCRIPTION,
   applicationCategory: "WebApplication",
   operatingSystem: "Any",
-  offers: [
-    {
-      "@type": "Offer",
-      name: "Free",
-      price: "0",
-      priceCurrency: "USD",
-      description: "3 monitors, 6 hour check interval, email notifications",
-    },
-    {
-      "@type": "Offer",
-      name: "Pro",
-      price: "9",
-      priceCurrency: "USD",
-      description: "25 monitors, 15 minute checks, all notification channels",
-    },
-    {
-      "@type": "Offer",
-      name: "Max",
-      price: "29",
-      priceCurrency: "USD",
-      description: "Unlimited monitors, 5 minute checks, API access, webhooks",
-    },
-  ],
+  offers: buildOffersJsonLd(),
   featureList: [
     "AI-powered web page monitoring",
     "Natural language search — describe what you want",

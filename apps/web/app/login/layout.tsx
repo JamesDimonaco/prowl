@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Sign In",
-  description: "Sign in to PageAlert to manage your website monitors and alerts.",
-  robots: { index: false, follow: false },
+  description:
+    "Sign in or create a free PageAlert account. Monitor any website with AI — track prices, stock, new listings, and more.",
+  alternates: { canonical: "https://pagealert.io/login" },
 };
 
 export default function LoginLayout({

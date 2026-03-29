@@ -3,27 +3,42 @@
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Radar, ArrowRight, Zap, Globe, Bell, Shield } from "lucide-react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
+import { PLANS } from "@/lib/plans";
 
 export default function LandingPage() {
+  const session = authClient.useSession();
+  const isLoggedIn = !session.isPending && !!session.data?.user;
+  const ctaHref = isLoggedIn ? "/dashboard" : "/login";
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Nav */}
       <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+          <Link href={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
               <Radar className="h-5 w-5 text-primary" />
             </div>
             <span className="text-xl font-bold tracking-tight">PageAlert</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground hover:text-foreground" })}>
-              Sign in
-            </Link>
-            <Link href="/login" className={buttonVariants({ size: "sm", className: "gap-2" })}>
-              Get Started
-              <ArrowRight className="h-4 w-4 hidden sm:inline" />
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className={buttonVariants({ size: "sm", className: "gap-2" })}>
+                Go to Dashboard
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground hover:text-foreground" })}>
+                  Sign in
+                </Link>
+                <Link href="/login" className={buttonVariants({ size: "sm", className: "gap-2" })}>
+                  Get Started
+                  <ArrowRight className="h-4 w-4 hidden sm:inline" />
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -58,8 +73,8 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/login" className={buttonVariants({ size: "lg", className: "gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto" })}>
-                  Start Monitoring
+                <Link href={ctaHref} className={buttonVariants({ size: "lg", className: "gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto" })}>
+                  {isLoggedIn ? "Go to Dashboard" : "Start Monitoring"}
                   <ArrowRight className="h-5 w-5" />
                 </Link>
                 <a href="#how-it-works" className="w-full sm:w-auto">
@@ -154,34 +169,7 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-8 md:grid-cols-3 max-w-4xl mx-auto">
-              {[
-                {
-                  name: "Free",
-                  price: "$0",
-                  features: ["3 monitors", "6 hour checks", "Email notifications"],
-                },
-                {
-                  name: "Pro",
-                  price: "$9",
-                  popular: true,
-                  features: [
-                    "25 monitors",
-                    "15 minute checks",
-                    "All notification channels",
-                    "Priority scraping",
-                  ],
-                },
-                {
-                  name: "Max",
-                  price: "$29",
-                  features: [
-                    "Unlimited monitors",
-                    "5 minute checks",
-                    "All channels + webhooks",
-                    "API access",
-                  ],
-                },
-              ].map((plan) => (
+              {PLANS.map((plan) => (
                 <div
                   key={plan.name}
                   className={`rounded-xl p-8 transition-all ${
@@ -197,22 +185,22 @@ export default function LandingPage() {
                   )}
                   <h3 className="text-lg font-semibold">{plan.name}</h3>
                   <p className="mt-3">
-                    <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+                    <span className="text-4xl font-bold tracking-tight">${plan.price}</span>
                     <span className="text-sm text-muted-foreground font-medium">/mo</span>
                   </p>
                   <ul className="mt-8 space-y-3">
-                    {plan.features.map((f) => (
+                    {plan.features.slice(0, 4).map((f) => (
                       <li key={f} className="flex items-center gap-2.5 text-sm text-foreground/80">
                         <Shield className="h-4 w-4 text-primary/70 shrink-0" />
                         {f}
                       </li>
                     ))}
                   </ul>
-                  <Link href="/login" className={buttonVariants({
+                  <Link href={ctaHref} className={buttonVariants({
                     variant: plan.popular ? "default" : "outline",
                     className: `w-full mt-8 ${plan.popular ? "shadow-md shadow-primary/20" : ""}`,
                   })}>
-                    Get started
+                    {isLoggedIn ? "Go to Dashboard" : "Get started"}
                   </Link>
                 </div>
               ))}
@@ -277,6 +265,7 @@ export default function LandingPage() {
               PageAlert
             </div>
             <nav className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
+              <Link href="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
               <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
               <a href="https://github.com/JamesDimonaco/prowl" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">GitHub</a>

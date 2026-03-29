@@ -1,8 +1,8 @@
 services:
   scraper:
     build:
-      context: ./apps/scraper
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.scraper
     ports:
       - "3001:3001"
     environment:
