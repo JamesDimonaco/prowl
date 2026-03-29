@@ -76,13 +76,13 @@ const pricingJsonLd = {
         price: String(plan.price),
         priceCurrency: "USD",
         unitCode: "MON",
-        billingDuration: plan.price === 0 ? undefined : "P1M",
+        billingDuration: plan.period === "forever" ? undefined : "P1M",
         referenceQuantity: {
           "@type": "QuantitativeValue",
           value: 1,
         },
       },
-      description: plan.features.join(", "),
+      description: plan.description,
     })),
   },
 };
@@ -147,7 +147,7 @@ export default function PricingPage() {
               <p className="mt-4">
                 <span className="text-4xl font-bold tracking-tight">${plan.price}</span>
                 <span className="text-sm text-muted-foreground font-medium">
-                  /{plan.price === 0 ? "forever" : "mo"}
+                  /{plan.period === "forever" ? "forever" : "mo"}
                 </span>
               </p>
               <ul className="mt-8 space-y-3">
@@ -165,7 +165,7 @@ export default function PricingPage() {
                   className: `w-full mt-8 ${plan.popular ? "shadow-md shadow-primary/20" : ""}`,
                 })}
               >
-                {plan.price === 0 ? "Start for free" : `Get ${plan.name}`}
+                {plan.period === "forever" ? "Start for free" : `Get ${plan.name}`}
               </Link>
             </div>
           ))}
