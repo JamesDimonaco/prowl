@@ -76,17 +76,16 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="profile">
-        <TabsList className="w-full sm:w-auto">
-          <TabsTrigger value="profile" className="flex-1 sm:flex-none">
+        <TabsList>
+          <TabsTrigger value="profile">
             <User className="mr-2 h-4 w-4" />
             Profile
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex-1 sm:flex-none">
+          <TabsTrigger value="notifications">
             <Bell className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Notifications</span>
-            <span className="sm:hidden">Notifs</span>
+            Notifications
           </TabsTrigger>
-          <TabsTrigger value="billing" className="flex-1 sm:flex-none">
+          <TabsTrigger value="billing">
             <CreditCard className="mr-2 h-4 w-4" />
             Billing
           </TabsTrigger>

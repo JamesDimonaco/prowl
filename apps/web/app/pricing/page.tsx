@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { buttonVariants } from "@/components/ui/button";
-import { Radar, Shield, Check, ArrowRight } from "lucide-react";
+import { Radar, Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -75,7 +75,7 @@ const pricingJsonLd = {
         "@type": "UnitPriceSpecification",
         price: String(plan.price),
         priceCurrency: "USD",
-        unitCode: plan.price === 0 ? "MON" : "MON",
+        unitCode: "MON",
         billingDuration: plan.price === 0 ? undefined : "P1M",
         referenceQuantity: {
           "@type": "QuantitativeValue",

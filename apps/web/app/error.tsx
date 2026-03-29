@@ -13,7 +13,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    captureException(error, { digest: error.digest });
+    captureException(error, error.digest ? { digest: error.digest } : undefined);
   }, [error]);
 
   return (

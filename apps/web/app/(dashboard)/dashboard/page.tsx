@@ -91,7 +91,7 @@ export default function DashboardPage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rescan failed";
       const durationMs = Date.now() - startTime;
-      await saveScanError({ id: monitorId, error: msg }).catch((e) => captureException(e, { context: "saveScanError", monitorId }));
+      await saveScanError({ id: monitorId, error: msg }).catch((saveErr) => captureException(saveErr, { context: "saveScanError", monitorId }));
       await createLog({
         monitorId,
         monitorName: monitor.name,
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         status: "error" as const,
         durationMs,
         error: msg,
-      }).catch((e) => captureException(e, { context: "createLog_error", monitorId }));
+      }).catch((logErr) => captureException(logErr, { context: "createLog_error", monitorId }));
       toast.error("Rescan failed", { description: msg });
     }
   }
