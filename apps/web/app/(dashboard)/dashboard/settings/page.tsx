@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Bell, CreditCard, Mail, MessageCircle, Hash, Trash2, Send, CheckCircle2, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { User, Bell, CreditCard, Mail, MessageCircle, Hash, Trash2, Send, CheckCircle2, Loader2, ExternalLink, Sparkles, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useMonitors } from "@/hooks/use-monitors";
 import { useTier } from "@/hooks/use-tier";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
@@ -65,8 +65,27 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [testEmailSending, setTestEmailSending] = useState(false);
   const [testEmailSent, setTestEmailSent] = useState(false);
+  const [telegramSaving, setTelegramSaving] = useState(false);
+  const [discordSaving, setDiscordSaving] = useState(false);
   const deleteAccountMutation = useMutation(api.account.deleteAccount);
   const sendTestEmail = useAction(api.notifications.sendTestEmail);
+  const upsertSetting = useMutation(api.notificationSettings.upsert);
+  const removeSetting = useMutation(api.notificationSettings.remove);
+  const sendTelegramTest = useAction(api.telegram.sendTestMessage);
+  const sendDiscordTest = useAction(api.discord.sendTestMessage);
+  const notifSettings = useQuery(api.notificationSettings.list);
+
+  // Sync settings from DB to local state on first load only
+  const settingsSyncedRef = useRef(false);
+  useEffect(() => {
+    if (notifSettings && !settingsSyncedRef.current) {
+      settingsSyncedRef.current = true;
+      const tg = notifSettings.find((s: { channel: string }) => s.channel === "telegram");
+      if (tg) setTelegramChatId(tg.target);
+      const dc = notifSettings.find((s: { channel: string }) => s.channel === "discord");
+      if (dc) setDiscordWebhook(dc.target);
+    }
+  }, [notifSettings]);
 
   return (
     <div className="space-y-10">
@@ -176,6 +195,14 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-8 space-y-8">
+          <div className="rounded-lg border border-border/20 bg-muted/30 px-4 py-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Notifications are sent for <strong className="text-foreground">all your monitors</strong> when new matches are found or errors occur.
+              Enable any channels below and they&apos;ll all receive alerts.
+              {tier === "free" && " Upgrade to Pro for Telegram and Discord."}
+            </p>
+          </div>
+
           <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
@@ -256,14 +283,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <Card className={`border-border/30 bg-card/50 shadow-sm shadow-black/5 ${tier === "free" ? "opacity-60" : ""}`}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                 <MessageCircle className="h-5 w-5 text-muted-foreground" />
                 Telegram
+                {tier === "free" && (
+                  <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 ml-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Pro
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-sm">
-                Get instant notifications via Telegram bot
+                {tier === "free"
+                  ? "Upgrade to Pro to get instant Telegram notifications"
+                  : "Get instant notifications via Telegram bot"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -274,30 +309,86 @@ export default function SettingsPage() {
                   placeholder="Your Telegram chat ID"
                   value={telegramChatId}
                   onChange={(e) => setTelegramChatId(e.target.value)}
+                  disabled={tier === "free"}
                 />
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Message @PageAlertBot on Telegram to get your chat ID
-                </p>
+                <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+                  <p className="font-medium text-foreground/70">How to get your Chat ID:</p>
+                  <ol className="list-decimal pl-4 space-y-0.5">
+                    <li>Open Telegram and search for <strong>@PageAlertBot</strong></li>
+                    <li>Press <strong>Start</strong> to begin a conversation</li>
+                    <li>The bot will reply with your Chat ID — paste it above</li>
+                  </ol>
+                </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toast.success("Telegram connected")}
-                disabled={!telegramChatId}
-              >
-                Connect
-              </Button>
+              {tier === "free" ? (
+                <Button size="sm" className="gap-1.5" onClick={() => handleCheckout("pro")}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Upgrade to Pro
+                </Button>
+              ) : notifSettings?.find((s) => s.channel === "telegram")?.enabled ? (
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Connected</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await removeSetting({ channel: "telegram" });
+                        setTelegramChatId("");
+                        trackNotificationChannelToggled({ channel: "telegram", enabled: false });
+                        toast.success("Telegram disconnected");
+                      } catch {
+                        toast.error("Failed to disconnect Telegram");
+                      }
+                    }}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!telegramChatId || telegramSaving}
+                  onClick={async () => {
+                    setTelegramSaving(true);
+                    try {
+                      await sendTelegramTest({ chatId: telegramChatId });
+                      await upsertSetting({ channel: "telegram", enabled: true, target: telegramChatId });
+                      trackNotificationChannelToggled({ channel: "telegram", enabled: true });
+                      toast.success("Telegram connected", { description: "Test message sent" });
+                    } catch (e) {
+                      toast.error("Failed to connect", {
+                        description: e instanceof Error ? e.message : "Check your Chat ID and try again",
+                      });
+                    } finally {
+                      setTelegramSaving(false);
+                    }
+                  }}
+                >
+                  {telegramSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Connect & Test
+                </Button>
+              )}
             </CardContent>
           </Card>
 
-          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <Card className={`border-border/30 bg-card/50 shadow-sm shadow-black/5 ${tier === "free" ? "opacity-60" : ""}`}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                 <Hash className="h-5 w-5 text-muted-foreground" />
                 Discord
+                {tier === "free" && (
+                  <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 ml-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Pro
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-sm">
-                Send notifications to a Discord channel via webhook
+                {tier === "free"
+                  ? "Upgrade to Pro to send notifications to Discord"
+                  : "Send notifications to a Discord channel via webhook"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -309,17 +400,83 @@ export default function SettingsPage() {
                   placeholder="https://discord.com/api/webhooks/..."
                   value={discordWebhook}
                   onChange={(e) => setDiscordWebhook(e.target.value)}
+                  disabled={tier === "free"}
                 />
+                <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+                  <p className="font-medium text-foreground/70">How to get a webhook URL:</p>
+                  <ol className="list-decimal pl-4 space-y-0.5">
+                    <li>Open your Discord server and go to <strong>Server Settings</strong></li>
+                    <li>Click <strong>Integrations</strong> &rarr; <strong>Webhooks</strong> &rarr; <strong>New Webhook</strong></li>
+                    <li>Choose the channel, then click <strong>Copy Webhook URL</strong></li>
+                  </ol>
+                </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toast.success("Discord connected")}
-                disabled={!discordWebhook}
-              >
-                Connect
-              </Button>
+              {tier === "free" ? (
+                <Button size="sm" className="gap-1.5" onClick={() => handleCheckout("pro")}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Upgrade to Pro
+                </Button>
+              ) : notifSettings?.find((s) => s.channel === "discord")?.enabled ? (
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Connected</Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await removeSetting({ channel: "discord" });
+                        setDiscordWebhook("");
+                        trackNotificationChannelToggled({ channel: "discord", enabled: false });
+                        toast.success("Discord disconnected");
+                      } catch {
+                        toast.error("Failed to disconnect Discord");
+                      }
+                    }}
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!discordWebhook || discordSaving}
+                  onClick={async () => {
+                    setDiscordSaving(true);
+                    try {
+                      await sendDiscordTest({ webhookUrl: discordWebhook });
+                      await upsertSetting({ channel: "discord", enabled: true, target: discordWebhook });
+                      trackNotificationChannelToggled({ channel: "discord", enabled: true });
+                      toast.success("Discord connected", { description: "Test message sent" });
+                    } catch (e) {
+                      toast.error("Failed to connect", {
+                        description: e instanceof Error ? e.message : "Check your webhook URL and try again",
+                      });
+                    } finally {
+                      setDiscordSaving(false);
+                    }
+                  }}
+                >
+                  {discordSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Connect & Test
+                </Button>
+              )}
             </CardContent>
+          </Card>
+
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5 opacity-60">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+                <Hash className="h-5 w-5 text-muted-foreground" />
+                Slack
+                <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 ml-1">
+                  Coming soon
+                </Badge>
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Send notifications directly to a Slack channel. Coming in a future update.
+              </CardDescription>
+            </CardHeader>
           </Card>
         </TabsContent>
 

@@ -83,9 +83,12 @@ export default function PricingPage() {
               </p>
               <ul className="mt-8 space-y-3">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2.5 text-sm text-foreground/80">
-                    <Check className="h-4 w-4 text-primary/70 shrink-0" />
-                    {f}
+                  <li key={f.text} className={`flex items-center gap-2.5 text-sm ${f.comingSoon ? "text-muted-foreground/60" : "text-foreground/80"}`}>
+                    <Check className={`h-4 w-4 shrink-0 ${f.comingSoon ? "text-muted-foreground/40" : "text-primary/70"}`} />
+                    {f.text}
+                    {f.comingSoon && (
+                      <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">Soon</span>
+                    )}
                   </li>
                 ))}
               </ul>

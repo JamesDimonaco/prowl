@@ -10,14 +10,18 @@
 
 import type * as account from "../account.js";
 import type * as crons from "../crons.js";
+import type * as discord from "../discord.js";
 import type * as emails from "../emails.js";
 import type * as http from "../http.js";
 import type * as logs from "../logs.js";
 import type * as monitors from "../monitors.js";
+import type * as notificationSettings from "../notificationSettings.js";
 import type * as notifications from "../notifications.js";
 import type * as scheduler from "../scheduler.js";
 import type * as shared from "../shared.js";
+import type * as telegram from "../telegram.js";
 import type * as tiers from "../tiers.js";
+import type * as userNotifications from "../userNotifications.js";
 
 import type {
   ApiFromModules,
@@ -28,14 +32,18 @@ import type {
 declare const fullApi: ApiFromModules<{
   account: typeof account;
   crons: typeof crons;
+  discord: typeof discord;
   emails: typeof emails;
   http: typeof http;
   logs: typeof logs;
   monitors: typeof monitors;
+  notificationSettings: typeof notificationSettings;
   notifications: typeof notifications;
   scheduler: typeof scheduler;
   shared: typeof shared;
+  telegram: typeof telegram;
   tiers: typeof tiers;
+  userNotifications: typeof userNotifications;
 }>;
 
 /**

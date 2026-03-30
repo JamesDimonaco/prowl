@@ -189,10 +189,10 @@ export default function LandingPage() {
                     <span className="text-sm text-muted-foreground font-medium">/mo</span>
                   </p>
                   <ul className="mt-8 space-y-3">
-                    {plan.features.slice(0, 4).map((f) => (
-                      <li key={f} className="flex items-center gap-2.5 text-sm text-foreground/80">
+                    {plan.features.filter((f) => !f.comingSoon).slice(0, 4).map((f) => (
+                      <li key={f.text} className="flex items-center gap-2.5 text-sm text-foreground/80">
                         <Shield className="h-4 w-4 text-primary/70 shrink-0" />
-                        {f}
+                        {f.text}
                       </li>
                     ))}
                   </ul>
