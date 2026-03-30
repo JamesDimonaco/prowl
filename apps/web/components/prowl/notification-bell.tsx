@@ -1,7 +1,6 @@
 "use client";
 
 import { Bell, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,15 +18,13 @@ export function NotificationBell() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {(unreadCount ?? 0) > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              {unreadCount! > 9 ? "9+" : unreadCount}
-            </span>
-          )}
-        </Button>
+      <DropdownMenuTrigger className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <Bell className="h-5 w-5" />
+        {(unreadCount ?? 0) > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+            {unreadCount! > 9 ? "9+" : unreadCount}
+          </span>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80" align="end">
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/30">
