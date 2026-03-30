@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Bell, CreditCard, Mail, MessageCircle, Hash, Trash2, Send, CheckCircle2, Loader2, ExternalLink, Sparkles } from "lucide-react";
+import { User, Bell, CreditCard, Mail, MessageCircle, Hash, Trash2, Send, CheckCircle2, Loader2, ExternalLink, Sparkles, Lock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -193,6 +193,14 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-8 space-y-8">
+          <div className="rounded-lg border border-border/20 bg-muted/30 px-4 py-3">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Notifications are sent for <strong className="text-foreground">all your monitors</strong> when new matches are found or errors occur.
+              Enable any channels below and they&apos;ll all receive alerts.
+              {tier === "free" && " Upgrade to Pro for Telegram and Discord."}
+            </p>
+          </div>
+
           <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
@@ -273,14 +281,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <Card className={`border-border/30 bg-card/50 shadow-sm shadow-black/5 ${tier === "free" ? "opacity-60" : ""}`}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                 <MessageCircle className="h-5 w-5 text-muted-foreground" />
                 Telegram
+                {tier === "free" && (
+                  <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 ml-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Pro
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-sm">
-                Get instant notifications via Telegram bot
+                {tier === "free"
+                  ? "Upgrade to Pro to get instant Telegram notifications"
+                  : "Get instant notifications via Telegram bot"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -291,12 +307,18 @@ export default function SettingsPage() {
                   placeholder="Your Telegram chat ID"
                   value={telegramChatId}
                   onChange={(e) => setTelegramChatId(e.target.value)}
+                  disabled={tier === "free"}
                 />
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Message @PageAlertBot on Telegram to get your chat ID
                 </p>
               </div>
-              {notifSettings?.find((s) => s.channel === "telegram")?.enabled ? (
+              {tier === "free" ? (
+                <Button size="sm" className="gap-1.5" onClick={() => handleCheckout("pro")}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Upgrade to Pro
+                </Button>
+              ) : notifSettings?.find((s) => s.channel === "telegram")?.enabled ? (
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Connected</Badge>
                   <Button
@@ -340,14 +362,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+          <Card className={`border-border/30 bg-card/50 shadow-sm shadow-black/5 ${tier === "free" ? "opacity-60" : ""}`}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold">
                 <Hash className="h-5 w-5 text-muted-foreground" />
                 Discord
+                {tier === "free" && (
+                  <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 ml-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Pro
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="text-sm">
-                Send notifications to a Discord channel via webhook
+                {tier === "free"
+                  ? "Upgrade to Pro to send notifications to Discord"
+                  : "Send notifications to a Discord channel via webhook"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -359,9 +389,15 @@ export default function SettingsPage() {
                   placeholder="https://discord.com/api/webhooks/..."
                   value={discordWebhook}
                   onChange={(e) => setDiscordWebhook(e.target.value)}
+                  disabled={tier === "free"}
                 />
               </div>
-              {notifSettings?.find((s) => s.channel === "discord")?.enabled ? (
+              {tier === "free" ? (
+                <Button size="sm" className="gap-1.5" onClick={() => handleCheckout("pro")}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Upgrade to Pro
+                </Button>
+              ) : notifSettings?.find((s) => s.channel === "discord")?.enabled ? (
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">Connected</Badge>
                   <Button

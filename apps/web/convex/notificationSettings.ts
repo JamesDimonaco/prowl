@@ -7,6 +7,21 @@ const channelValidator = v.union(
   v.literal("discord")
 );
 
+type Tier = "free" | "pro" | "max";
+const TIER_CHANNELS: Record<Tier, string[]> = {
+  free: ["email"],
+  pro: ["email", "telegram", "discord"],
+  max: ["email", "telegram", "discord", "webhook"],
+};
+
+async function getUserTier(ctx: { db: any }, userId: string): Promise<Tier> {
+  const record = await ctx.db
+    .query("userTiers")
+    .withIndex("by_userId", (q: any) => q.eq("userId", userId))
+    .unique();
+  return (record?.tier as Tier) ?? "free";
+}
+
 /** Get all notification settings for the current user */
 export const list = query({
   args: {},
@@ -31,6 +46,12 @@ export const upsert = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     const userId = identity.subject;
+
+    // Enforce tier-based channel access
+    const tier = await getUserTier(ctx, userId);
+    if (!TIER_CHANNELS[tier].includes(args.channel)) {
+      throw new Error(`${args.channel} notifications require a Pro or Max plan`);
+    }
 
     // Validate target based on channel
     if (args.channel === "telegram" && args.enabled) {
