@@ -1,10 +1,15 @@
+export interface PlanFeature {
+  text: string;
+  comingSoon?: boolean;
+}
+
 export interface Plan {
   name: string;
   price: number;
   period: "forever" | "month";
   popular?: boolean;
   description: string;
-  features: string[];
+  features: PlanFeature[];
 }
 
 export const PLANS: Plan[] = [
@@ -14,11 +19,11 @@ export const PLANS: Plan[] = [
     period: "forever",
     description: "Get started with basic monitoring",
     features: [
-      "3 monitors",
-      "6 hour check interval",
-      "Email notifications",
-      "AI-powered extraction",
-      "Change detection",
+      { text: "3 monitors" },
+      { text: "6 hour check interval" },
+      { text: "Email notifications" },
+      { text: "AI-powered extraction" },
+      { text: "Change detection" },
     ],
   },
   {
@@ -28,28 +33,31 @@ export const PLANS: Plan[] = [
     popular: true,
     description: "For power users who need faster checks",
     features: [
-      "25 monitors",
-      "15 minute check interval",
-      "Email, Telegram & Discord",
-      "Priority scraping",
-      "AI-powered extraction",
-      "Change detection",
+      { text: "25 monitors" },
+      { text: "15 minute check interval" },
+      { text: "Email, Telegram & Discord" },
+      { text: "Priority scraping" },
+      { text: "AI-powered extraction" },
+      { text: "Change detection" },
+      { text: "Screenshot diffs", comingSoon: true },
     ],
   },
   {
     name: "Max",
     price: 29,
     period: "month",
-    description: "Unlimited monitoring with API access",
+    description: "Unlimited monitoring with everything",
     features: [
-      "Unlimited monitors",
-      "5 minute check interval",
-      "All notification channels",
-      "Webhook notifications",
-      "API access",
-      "Priority scraping",
-      "AI-powered extraction",
-      "Change detection",
+      { text: "Unlimited monitors" },
+      { text: "5 minute check interval" },
+      { text: "All notification channels" },
+      { text: "Priority scraping" },
+      { text: "AI-powered extraction" },
+      { text: "Change detection" },
+      { text: "Webhook notifications", comingSoon: true },
+      { text: "API access", comingSoon: true },
+      { text: "Screenshot diffs", comingSoon: true },
+      { text: "Slack integration", comingSoon: true },
     ],
   },
 ];
@@ -61,7 +69,7 @@ export function buildOffersJsonLd() {
     name: plan.name,
     price: String(plan.price),
     priceCurrency: "USD",
-    description: plan.description,
+    description: plan.features.filter((f) => !f.comingSoon).map((f) => f.text).join(", "),
     priceSpecification: {
       "@type": "UnitPriceSpecification" as const,
       price: String(plan.price),
