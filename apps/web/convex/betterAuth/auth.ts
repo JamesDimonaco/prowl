@@ -94,44 +94,42 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
             onSubscriptionCreated: async (payload) => {
               const sub = payload.data;
               const tier = productIdToTier(sub.productId);
-              // Better Auth may normalize or leave snake_case — check both
               const customer = sub.customer as Record<string, unknown> | undefined;
               const userId = customer?.externalId ?? customer?.external_id ?? (sub as any).customerExternalId ?? (sub as any).customer_external_id;
-              console.log("[polar] Subscription created:", sub.id, "tier:", tier, "userId:", userId, "customer:", JSON.stringify(customer)?.slice(0, 200));
+              console.log("[polar] Subscription created:", sub.id, "tier:", tier, "userId:", userId);
 
               if (tier && userId) {
-                try {
-                  await (ctx as any).runMutation(internal.tiers.update, {
-                    userId,
-                    tier,
-                    polarCustomerId: sub.customerId,
-                    polarSubscriptionId: sub.id,
-                  });
-                  console.log("[polar] Tier updated to", tier, "for user", userId);
-                } catch (e) {
-                  console.error("[polar] Failed to update tier:", e);
-                }
+                await (ctx as any).runMutation(internal.tiers.update, {
+                  userId,
+                  tier,
+                  polarCustomerId: sub.customerId,
+                  polarSubscriptionId: sub.id,
+                });
+                console.log("[polar] Tier updated to", tier, "for user", userId);
               }
             },
 
             onSubscriptionCanceled: async (payload) => {
               const sub = payload.data;
+              console.log("[polar] Subscription canceled:", sub.id, "— will downgrade when revoked");
+              // Don't downgrade here — user still has access until period ends.
+              // Downgrade happens in onSubscriptionRevoked.
+            },
+
+            onSubscriptionRevoked: async (payload) => {
+              const sub = payload.data;
               const customer = sub.customer as Record<string, unknown> | undefined;
               const userId = customer?.externalId ?? customer?.external_id ?? (sub as any).customerExternalId ?? (sub as any).customer_external_id;
-              console.log("[polar] Subscription canceled:", sub.id, "userId:", userId);
+              console.log("[polar] Subscription revoked:", sub.id, "userId:", userId);
 
               if (userId) {
-                try {
-                  await (ctx as any).runMutation(internal.tiers.update, {
-                    userId,
-                    tier: "free" as const,
-                    polarCustomerId: sub.customerId,
-                    polarSubscriptionId: sub.id,
-                  });
-                  console.log("[polar] Tier downgraded to free for user", userId);
-                } catch (e) {
-                  console.error("[polar] Failed to downgrade tier:", e);
-                }
+                await (ctx as any).runMutation(internal.tiers.update, {
+                  userId,
+                  tier: "free" as const,
+                  polarCustomerId: sub.customerId,
+                  polarSubscriptionId: sub.id,
+                });
+                console.log("[polar] Tier downgraded to free for user", userId);
               }
             },
 
