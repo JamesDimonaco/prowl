@@ -199,6 +199,16 @@ export const saveScanResult = mutation({
       nextCheckAt: now + intervalToMs(monitor.checkInterval),
       updatedAt: now,
     });
+
+    // Save initial scan to history so it appears in the History tab
+    const items = Array.isArray(schema?.items) ? schema.items : [];
+    await ctx.db.insert("scrapeResults", {
+      monitorId: id,
+      matches: items.slice(0, 50),
+      totalItems: items.length,
+      hasNewMatches: matchCount > 0,
+      scrapedAt: now,
+    });
   },
 });
 
