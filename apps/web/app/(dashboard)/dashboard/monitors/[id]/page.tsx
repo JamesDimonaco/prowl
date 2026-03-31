@@ -61,7 +61,9 @@ export default function MonitorDetailPage({
       toast.success("Rescan complete", { description: `${totalItems} items, ${matchCount} matches` });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rescan failed";
-      await saveScanError({ id, error: msg }).catch(() => {});
+      await saveScanError({ id, error: msg }).catch((saveErr) => {
+        console.error("[rescan] Failed to persist error state:", saveErr, { monitorId: id, error: msg });
+      });
       toast.error("Rescan failed", { description: msg });
     }
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +59,23 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [retryTimestamps, setRetryTimestamps] = useState<number[]>([]);
+
+  // Persist retry timestamps to localStorage so limit survives refresh
+  const storageKey = `pagealert_retry_${monitorId}`;
+  const [retryTimestamps, setRetryTimestamps] = useState<number[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored) as number[];
+      return parsed.filter((t) => Date.now() - t < RETRY_WINDOW_MS);
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    const pruned = retryTimestamps.filter((t) => Date.now() - t < RETRY_WINDOW_MS);
+    localStorage.setItem(storageKey, JSON.stringify(pruned));
+  }, [retryTimestamps, storageKey]);
 
   const recentRetries = retryTimestamps.filter((t) => Date.now() - t < RETRY_WINDOW_MS);
   const canRetry = monitor.status === "error" && onRescan && recentRetries.length < RETRY_LIMIT && !retrying;
