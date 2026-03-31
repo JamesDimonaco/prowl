@@ -95,7 +95,6 @@ export function useTier(): TierInfo {
         if (Array.isArray(subs) && subs.length > 0) {
           setPolarTier(detectTier(subs));
         } else {
-          // No active subscriptions — user is free
           setPolarTier("free");
         }
       }
