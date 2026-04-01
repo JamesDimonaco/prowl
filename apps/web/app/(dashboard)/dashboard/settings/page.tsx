@@ -49,12 +49,18 @@ export default function SettingsPage() {
     }
   }, [refetchTier]);
 
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   async function handleCheckout(slug: "pro" | "max") {
+    if (isCheckingOut) return;
+    setIsCheckingOut(true);
     trackUpgradePromptClicked({ plan: slug, currentTier: tier });
     try {
       await authClient.checkout({ slug });
     } catch {
       toast.error("Checkout unavailable", { description: "Billing is not configured yet" });
+    } finally {
+      setIsCheckingOut(false);
     }
   }
 
