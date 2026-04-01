@@ -502,21 +502,30 @@ export default function SettingsPage() {
                     {tierDescription}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   {tier === "free" && (
                     <Button
-                      className="gap-1.5 shadow-md shadow-primary/15 w-full sm:w-auto"
+                      className="gap-1.5 shadow-md shadow-primary/15"
                       onClick={() => handleCheckout("pro")}
                     >
                       <Sparkles className="h-4 w-4" />
                       Upgrade to Pro
                     </Button>
                   )}
+                  {tier === "pro" && (
+                    <Button
+                      className="gap-1.5 shadow-md shadow-primary/15"
+                      onClick={() => handleCheckout("max")}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Upgrade to Max
+                    </Button>
+                  )}
                   {tier !== "free" && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5 w-full sm:w-auto"
+                      className="gap-1.5"
                       onClick={async () => {
                         try {
                           await authClient.customer.portal();
@@ -531,6 +540,12 @@ export default function SettingsPage() {
                   )}
                 </div>
               </div>
+              {tier !== "free" && (
+                <p className="text-xs text-muted-foreground mt-4">
+                  Manage your billing, update payment method, or cancel your subscription from the Polar customer portal.
+                  {" "}If you cancel, you&apos;ll keep access until the end of your billing period.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -565,20 +580,42 @@ export default function SettingsPage() {
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                     <li>Unlimited monitors</li>
                     <li>5 minute checks</li>
-                    <li>API access + webhooks</li>
+                    <li>Everything in Pro</li>
                   </ul>
                   <Button
                     variant="outline"
                     className="w-full mt-4 gap-1.5"
-                    onClick={async () => {
-                      handleCheckout("max");
-                    }}
+                    onClick={() => handleCheckout("max")}
                   >
                     Upgrade to Max
                   </Button>
                 </CardContent>
               </Card>
             </div>
+          )}
+
+          {/* Pro → Max upgrade */}
+          {tier === "pro" && (
+            <Card className="border-border/30 bg-card/50 shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold">Need more?</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Max gives you unlimited monitors, 5 minute checks, and everything coming soon.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => handleCheckout("max")}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Upgrade to Max — $29/mo
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Usage */}
