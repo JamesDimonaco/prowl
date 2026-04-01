@@ -48,6 +48,7 @@ interface CreateMonitorSheetProps {
     url: string;
     prompt: string;
     checkInterval: CheckInterval;
+    notificationChannels?: ("email" | "telegram" | "discord")[];
   }) => void;
   onCancelScan: () => void;
   onConfirm: () => void;
