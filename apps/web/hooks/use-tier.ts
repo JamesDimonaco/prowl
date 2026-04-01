@@ -57,6 +57,9 @@ interface TierInfo {
   channels: string[];
   description: string;
   allowedIntervals: string[];
+  isCancelled: boolean;
+  periodEnd: number | null;
+  daysRemaining: number | null;
   refetch: () => void;
 }
 
@@ -136,9 +139,18 @@ export function useTier(): TierInfo {
     }
   }, [tier, isLoading]);
 
+  const isCancelled = convexTier?.isCancelled ?? false;
+  const periodEnd = convexTier?.periodEnd ?? null;
+  const daysRemaining = periodEnd
+    ? Math.max(0, Math.ceil((periodEnd - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   return {
     tier,
     isLoading,
+    isCancelled,
+    periodEnd,
+    daysRemaining,
     refetch: fetchAndSync,
     ...TIER_LIMITS[tier],
   };

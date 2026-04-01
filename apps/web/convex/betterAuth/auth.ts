@@ -111,9 +111,26 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
 
             onSubscriptionCanceled: async (payload) => {
               const sub = payload.data;
-              console.log("[polar] Subscription canceled:", sub.id, "— will downgrade when revoked");
-              // Don't downgrade here — user still has access until period ends.
-              // Downgrade happens in onSubscriptionRevoked.
+              const customer = sub.customer as Record<string, unknown> | undefined;
+              const userId = customer?.externalId ?? customer?.external_id ?? (sub as any).customerExternalId ?? (sub as any).customer_external_id;
+
+              // Don't downgrade tier — user keeps access until period ends.
+              // Just mark the subscription as cancelled with the period end date.
+              if (userId) {
+                const periodEnd = sub.currentPeriodEnd
+                  ? new Date(sub.currentPeriodEnd as string).getTime()
+                  : (sub as any).current_period_end
+                    ? new Date((sub as any).current_period_end as string).getTime()
+                    : undefined;
+
+                if (periodEnd) {
+                  await (ctx as any).runMutation(internal.tiers.markCancelled, {
+                    userId,
+                    periodEnd,
+                    polarSubscriptionId: sub.id,
+                  });
+                }
+              }
             },
 
             onSubscriptionRevoked: async (payload) => {
