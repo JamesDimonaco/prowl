@@ -133,6 +133,12 @@ export const get = query({
 
 // ---- Mutations ----
 
+const channelValidator = v.array(v.union(
+  v.literal("email"),
+  v.literal("telegram"),
+  v.literal("discord")
+));
+
 /** Create a monitor in "scanning" state. The scan runs client-side, then saveScanResult is called. */
 export const create = mutation({
   args: {
@@ -140,6 +146,7 @@ export const create = mutation({
     url: v.string(),
     prompt: v.string(),
     checkInterval: intervalValidator,
+    notificationChannels: v.optional(channelValidator),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -164,12 +171,28 @@ export const create = mutation({
       throw new Error(`Your ${tier} plan allows ${limits.maxMonitors} monitors. Upgrade for more.`);
     }
 
+    // Server-side enforcement: free tier can only have one monitor with non-email channels
+    let channels = args.notificationChannels;
+    if (tier === "free" && channels) {
+      const hasNonEmail = channels.some((c) => c !== "email");
+      if (hasNonEmail) {
+        const existingWithChannels = existingMonitors.find((m) =>
+          (m as any).notificationChannels?.some((c: string) => c === "telegram" || c === "discord")
+        );
+        if (existingWithChannels) {
+          // Strip non-email channels — free user already has one monitor with them
+          channels = channels.filter((c) => c === "email");
+        }
+      }
+    }
+
     const now = Date.now();
     return ctx.db.insert("monitors", {
       name: args.name.trim(),
       url: args.url.trim(),
       prompt: args.prompt.trim(),
       checkInterval: checkInterval,
+      notificationChannels: channels,
       userId,
       userEmail,
       status: "scanning",
@@ -253,6 +276,7 @@ export const update = mutation({
     status: v.optional(statusValidator),
     checkInterval: v.optional(intervalValidator),
     schema: v.optional(v.any()),
+    notificationChannels: v.optional(channelValidator),
   },
   handler: async (ctx, { id, ...fields }) => {
     const userId = await getAuthUserId(ctx);
@@ -263,10 +287,31 @@ export const update = mutation({
     if (fields.url !== undefined) validateMonitorUrl(fields.url);
     if (fields.prompt !== undefined) validatePrompt(fields.prompt);
 
-    // Dynamic tier-based interval enforcement
-    if (fields.checkInterval !== undefined) {
-      const tier = await getUserTier(ctx, userId);
+    // Dynamic tier-based enforcement
+    const tier = (fields.checkInterval !== undefined || fields.notificationChannels !== undefined)
+      ? await getUserTier(ctx, userId)
+      : null;
+
+    if (fields.checkInterval !== undefined && tier) {
       fields.checkInterval = clampInterval(fields.checkInterval, tier) as typeof fields.checkInterval;
+    }
+
+    // Free tier: only one monitor can have non-email channels
+    if (fields.notificationChannels !== undefined && tier === "free") {
+      const hasNonEmail = fields.notificationChannels.some((c) => c !== "email");
+      if (hasNonEmail) {
+        const otherMonitors = await ctx.db
+          .query("monitors")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .collect();
+        const otherWithChannels = otherMonitors.find((m) =>
+          m._id !== id &&
+          (m as any).notificationChannels?.some((c: string) => c === "telegram" || c === "discord")
+        );
+        if (otherWithChannels) {
+          fields.notificationChannels = fields.notificationChannels.filter((c) => c === "email") as typeof fields.notificationChannels;
+        }
+      }
     }
 
     const now = Date.now();

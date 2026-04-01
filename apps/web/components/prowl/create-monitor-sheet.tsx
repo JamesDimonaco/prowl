@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ChannelSelector } from "@/components/prowl/channel-selector";
 import { Separator } from "@/components/ui/separator";
 import { IntervalSelector } from "@/components/prowl/interval-selector";
 import {
@@ -28,7 +29,7 @@ import { MatchConditionsEditor } from "./match-conditions-editor";
 import { AiInsightsCard } from "./ai-insights";
 import { applyMatchConditions } from "@prowl/shared";
 import { useMonitor } from "@/hooks/use-monitors";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { MatchConditions, ExtractedItem, ExtractionSchema } from "@prowl/shared";
@@ -46,6 +47,7 @@ interface CreateMonitorSheetProps {
     url: string;
     prompt: string;
     checkInterval: CheckInterval;
+    notificationChannels?: ("email" | "telegram" | "discord")[];
   }) => void;
   onCancelScan: () => void;
   onConfirm: () => void;
@@ -66,6 +68,7 @@ export function CreateMonitorSheet({
   const [url, setUrl] = useState("");
   const [prompt, setPrompt] = useState("");
   const [checkInterval, setCheckInterval] = useState<CheckInterval>("6h");
+  const [channels, setChannels] = useState<("email" | "telegram" | "discord")[]>(["email"]);
 
   // Match conditions editing
   const [editedConditions, setEditedConditions] = useState<MatchConditions | null>(null);
@@ -97,14 +100,27 @@ export function CreateMonitorSheet({
     };
   }, [step]);
 
+  // Default channels to all configured channels
+  const notifSettings = useQuery(api.notificationSettings.list);
+
   // Reset form when the sheet opens for a new monitor (false → true transition)
   const prevOpenRef = useRef(open);
   useEffect(() => {
     if (open && !prevOpenRef.current && !activeMonitorId && !isScanning) {
       resetForm();
+      // Set default channels to all configured ones
+      const configured: ("email" | "telegram" | "discord")[] = ["email"];
+      if (notifSettings) {
+        for (const s of notifSettings) {
+          if (s.enabled && (s.channel === "telegram" || s.channel === "discord")) {
+            configured.push(s.channel);
+          }
+        }
+      }
+      setChannels(configured);
     }
     prevOpenRef.current = open;
-  }, [open, activeMonitorId, isScanning]);
+  }, [open, activeMonitorId, isScanning, notifSettings]);
 
   // When monitor loads with schema, init edited conditions
   useEffect(() => {
@@ -125,6 +141,7 @@ export function CreateMonitorSheet({
     setUrl("");
     setPrompt("");
     setCheckInterval("6h");
+    setChannels(["email"]);
     setEditedConditions(null);
   }
 
@@ -188,6 +205,7 @@ export function CreateMonitorSheet({
                     url,
                     prompt,
                     checkInterval,
+                    notificationChannels: channels,
                   });
                 }}
                 className="space-y-6"
@@ -230,6 +248,7 @@ export function CreateMonitorSheet({
                   <Label className="text-sm font-medium">Check frequency</Label>
                   <IntervalSelector value={checkInterval} onValueChange={setCheckInterval} />
                 </div>
+                <ChannelSelector value={channels} onChange={setChannels} monitorId={null} />
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                     Cancel

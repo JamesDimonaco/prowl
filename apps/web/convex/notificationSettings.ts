@@ -8,8 +8,9 @@ const channelValidator = v.union(
 );
 
 type Tier = "free" | "pro" | "max";
+// All tiers can connect channels — per-monitor limits are enforced in monitors.create/update
 const TIER_CHANNELS: Record<Tier, string[]> = {
-  free: ["email"],
+  free: ["email", "telegram", "discord"],
   pro: ["email", "telegram", "discord"],
   max: ["email", "telegram", "discord"],
 };
@@ -62,6 +63,41 @@ export const upsert = mutation({
     if (args.channel === "discord" && args.enabled) {
       if (!args.target.trim().startsWith("https://discord.com/api/webhooks/")) {
         throw new Error("Invalid Discord webhook URL");
+      }
+    }
+
+    // Anti-abuse: free tier channel deduplication
+    if (tier === "free" && args.enabled && (args.channel === "telegram" || args.channel === "discord")) {
+      const claimChannel = args.channel as "telegram" | "discord";
+      const existingClaim = await ctx.db
+        .query("channelClaims")
+        .withIndex("by_channel_target", (q) =>
+          q.eq("channel", claimChannel).eq("target", args.target.trim())
+        )
+        .unique();
+
+      if (existingClaim && existingClaim.userId !== userId) {
+        throw new Error("This channel is already in use on another free account");
+      }
+
+      // Create or update claim
+      if (!existingClaim) {
+        // Remove any existing claim by this user for this channel type
+        const userClaims = await ctx.db
+          .query("channelClaims")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .collect();
+        for (const claim of userClaims) {
+          if (claim.channel === args.channel) {
+            await ctx.db.delete(claim._id);
+          }
+        }
+        await ctx.db.insert("channelClaims", {
+          channel: args.channel,
+          target: args.target.trim(),
+          userId,
+          claimedAt: Date.now(),
+        });
       }
     }
 
