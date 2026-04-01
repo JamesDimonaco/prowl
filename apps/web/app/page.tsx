@@ -1,15 +1,18 @@
 "use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Radar, ArrowRight, Zap, Globe, Bell, Shield } from "lucide-react";
+import { Radar, ArrowRight, Zap, Globe, Bell, Shield, Github } from "lucide-react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { PLANS } from "@/lib/plans";
 
 export default function LandingPage() {
   const session = authClient.useSession();
   const isLoggedIn = !session.isPending && !!session.data?.user;
   const ctaHref = isLoggedIn ? "/dashboard" : "/login";
+  const totalMonitors = useQuery(api.monitors.totalCount);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -82,6 +85,38 @@ export default function LandingPage() {
                     See how it works
                   </Button>
                 </a>
+              </div>
+
+              {/* Trust signals */}
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5" />
+                  No credit card required
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Github className="h-3.5 w-3.5" />
+                  Open source
+                </span>
+                {(totalMonitors ?? 0) > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="h-3.5 w-3.5" />
+                    {totalMonitors?.toLocaleString()} monitors created
+                  </span>
+                )}
+              </div>
+
+              {/* Use case examples */}
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+                {[
+                  "MacBook Pro under $1500",
+                  "PS5 back in stock",
+                  "3 bed house under 400k",
+                  "Remote React jobs",
+                ].map((example) => (
+                  <span key={example} className="rounded-full border border-border/30 bg-card/50 px-3 py-1 text-xs text-muted-foreground">
+                    &ldquo;{example}&rdquo;
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -272,8 +307,11 @@ export default function LandingPage() {
               <a href="https://james.dimonaco.co.uk" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Made by James DiMonaco</a>
             </nav>
           </div>
-          <div className="mt-6 pt-6 border-t border-border/20">
+          <div className="mt-6 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <p className="text-xs text-muted-foreground/60">&copy; {new Date().getFullYear()} PageAlert. All rights reserved.</p>
+            <a href="https://www.producthunt.com/products/pagealert?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-pagealert" target="_blank" rel="noopener noreferrer">
+              <img alt="PageAlert on Product Hunt" width="250" height="54" loading="lazy" decoding="async" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1110261&theme=dark&t=1775009427331" />
+            </a>
           </div>
         </div>
       </footer>
