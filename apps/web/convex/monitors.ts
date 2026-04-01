@@ -98,6 +98,15 @@ const intervalValidator = v.union(
 
 // ---- Queries ----
 
+/** Public: total monitors created across all users (for social proof) */
+export const totalCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("monitors").collect();
+    return all.length;
+  },
+});
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
