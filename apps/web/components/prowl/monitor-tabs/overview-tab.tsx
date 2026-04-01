@@ -100,6 +100,7 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
   const [editChannels, setEditChannels] = useState<("email" | "telegram" | "discord")[]>(
     (monitor.notificationChannels as ("email" | "telegram" | "discord")[]) ?? ["email"]
   );
+  const [channelsTouched, setChannelsTouched] = useState(false);
 
   const updateMutation = useMutation(api.monitors.update);
   const schema = monitor.schema as ExtractionSchema | undefined;
@@ -109,6 +110,7 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
     setEditPrompt(monitor.prompt);
     setEditInterval(monitor.checkInterval as "5m" | "15m" | "30m" | "1h" | "6h" | "24h");
     setEditChannels((monitor.notificationChannels as ("email" | "telegram" | "discord")[]) ?? ["email"]);
+    setChannelsTouched(false);
     setEditing(true);
   }
 
@@ -123,8 +125,10 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
         id: monitorId,
         name: editName.trim(),
         prompt: editPrompt.trim(),
-        notificationChannels: editChannels,
       };
+      if (channelsTouched) {
+        payload.notificationChannels = editChannels;
+      }
       if (editInterval !== monitor.checkInterval) {
         payload.checkInterval = editInterval;
       }
@@ -198,7 +202,7 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
                 <Label className="text-sm font-medium">Check frequency</Label>
                 <IntervalSelector value={editInterval} onValueChange={setEditInterval} />
               </div>
-              <ChannelSelector value={editChannels} onChange={setEditChannels} monitorId={monitorId} />
+              <ChannelSelector value={editChannels} onChange={(c) => { setEditChannels(c); setChannelsTouched(true); }} monitorId={monitorId} />
               <div className="flex items-center gap-2 pt-2">
                 <Button size="sm" className="gap-1.5" onClick={saveEdits} disabled={saving}>
                   {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}

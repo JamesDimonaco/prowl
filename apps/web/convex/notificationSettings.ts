@@ -8,8 +8,9 @@ const channelValidator = v.union(
 );
 
 type Tier = "free" | "pro" | "max";
+// All tiers can connect channels — per-monitor limits are enforced in monitors.create/update
 const TIER_CHANNELS: Record<Tier, string[]> = {
-  free: ["email"],
+  free: ["email", "telegram", "discord"],
   pro: ["email", "telegram", "discord"],
   max: ["email", "telegram", "discord"],
 };

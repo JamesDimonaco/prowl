@@ -287,10 +287,31 @@ export const update = mutation({
     if (fields.url !== undefined) validateMonitorUrl(fields.url);
     if (fields.prompt !== undefined) validatePrompt(fields.prompt);
 
-    // Dynamic tier-based interval enforcement
-    if (fields.checkInterval !== undefined) {
-      const tier = await getUserTier(ctx, userId);
+    // Dynamic tier-based enforcement
+    const tier = (fields.checkInterval !== undefined || fields.notificationChannels !== undefined)
+      ? await getUserTier(ctx, userId)
+      : null;
+
+    if (fields.checkInterval !== undefined && tier) {
       fields.checkInterval = clampInterval(fields.checkInterval, tier) as typeof fields.checkInterval;
+    }
+
+    // Free tier: only one monitor can have non-email channels
+    if (fields.notificationChannels !== undefined && tier === "free") {
+      const hasNonEmail = fields.notificationChannels.some((c) => c !== "email");
+      if (hasNonEmail) {
+        const otherMonitors = await ctx.db
+          .query("monitors")
+          .withIndex("by_userId", (q) => q.eq("userId", userId))
+          .collect();
+        const otherWithChannels = otherMonitors.find((m) =>
+          m._id !== id &&
+          (m as any).notificationChannels?.some((c: string) => c === "telegram" || c === "discord")
+        );
+        if (otherWithChannels) {
+          fields.notificationChannels = fields.notificationChannels.filter((c) => c === "email") as typeof fields.notificationChannels;
+        }
+      }
     }
 
     const now = Date.now();

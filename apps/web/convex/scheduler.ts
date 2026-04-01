@@ -204,9 +204,10 @@ export const runScheduledChecks = internalAction({
             // Per-monitor channel filtering: if set, only send to those channels
             const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
             const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
+            const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
-            // Create in-app notification (always)
-            await ctx.runMutation(internal.userNotifications.create, {
+            // Create in-app notification (unless all channels explicitly disabled)
+            if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
               userId: monitor.userId,
               monitorId: monitor._id,
               channel: "in_app",
@@ -284,9 +285,10 @@ export const runScheduledChecks = internalAction({
           if (willError) {
             const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
             const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
+            const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
-            // In-app notification (always)
-            await ctx.runMutation(internal.userNotifications.create, {
+            // In-app notification (unless all channels explicitly disabled)
+            if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
               userId: monitor.userId,
               monitorId: monitor._id,
               channel: "in_app",
