@@ -122,13 +122,15 @@ export const createAuthOptions = (ctx: GenericCtx<DataModel>) => {
                   ? new Date(String(rawPeriodEnd)).getTime()
                   : undefined;
 
-                if (periodEnd) {
-                  await (ctx as any).runMutation(internal.tiers.markCancelled, {
-                    userId,
-                    periodEnd,
-                    polarSubscriptionId: sub.id,
-                  });
+                if (!periodEnd) {
+                  console.warn("[polar] Subscription canceled but no periodEnd found:", sub.id, "userId:", userId);
                 }
+
+                await (ctx as any).runMutation(internal.tiers.markCancelled, {
+                  userId,
+                  periodEnd: periodEnd ?? Date.now() + 30 * 24 * 60 * 60 * 1000, // fallback: 30 days
+                  polarSubscriptionId: sub.id,
+                });
               }
             },
 

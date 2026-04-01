@@ -72,13 +72,16 @@ export const markCancelled = internalMutation({
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .unique();
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        cancelledAt: Date.now(),
-        periodEnd: args.periodEnd,
-        polarSubscriptionId: args.polarSubscriptionId,
-        updatedAt: Date.now(),
-      });
+    if (!existing) {
+      console.warn("[tiers] markCancelled: no userTiers record for userId:", args.userId, "sub:", args.polarSubscriptionId);
+      return;
     }
+
+    await ctx.db.patch(existing._id, {
+      cancelledAt: Date.now(),
+      periodEnd: args.periodEnd,
+      polarSubscriptionId: args.polarSubscriptionId,
+      updatedAt: Date.now(),
+    });
   },
 });
