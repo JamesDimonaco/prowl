@@ -14,7 +14,7 @@ export default function NotFound() {
         </div>
         <h1 className="text-4xl font-bold tracking-tight mb-2">404</h1>
         <p className="text-muted-foreground mb-8">This page doesn&apos;t exist.</p>
-        <Link href="/" className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+        <Link href="/" className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
           Back to PageAlert
         </Link>
       </div>
