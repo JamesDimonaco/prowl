@@ -310,7 +310,7 @@ export default function LandingPage() {
           <div className="mt-6 pt-6 border-t border-border/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <p className="text-xs text-muted-foreground/60">&copy; {new Date().getFullYear()} PageAlert. All rights reserved.</p>
             <a href="https://www.producthunt.com/products/pagealert?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-pagealert" target="_blank" rel="noopener noreferrer">
-              <img alt="PageAlert on Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1110261&theme=dark&t=1775009427331" />
+              <img alt="PageAlert on Product Hunt" width="250" height="54" loading="lazy" decoding="async" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1110261&theme=dark&t=1775009427331" />
             </a>
           </div>
         </div>
