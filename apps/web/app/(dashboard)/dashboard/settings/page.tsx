@@ -80,6 +80,7 @@ export default function SettingsPage() {
   const removeSetting = useMutation(api.notificationSettings.remove);
   const sendTelegramTest = useAction(api.telegram.sendTestMessage);
   const sendDiscordTest = useAction(api.discord.sendTestMessage);
+  const updateMonitor = useMutation(api.monitors.update);
   const notifSettings = useQuery(api.notificationSettings.list);
 
   // Sync settings from DB to local state on first load only
@@ -393,7 +394,35 @@ export default function SettingsPage() {
                       await sendTelegramTest({ chatId: telegramChatId });
                       await upsertSetting({ channel: "telegram", enabled: true, target: telegramChatId });
                       trackNotificationChannelToggled({ channel: "telegram", enabled: true });
-                      toast.success("Telegram connected", { description: "Test message sent" });
+
+                      // Offer to enable on all existing monitors
+                      if (monitors.length > 0) {
+                        toast.success("Telegram connected!", {
+                          description: `Enable Telegram notifications on all ${monitors.length} monitor${monitors.length !== 1 ? "s" : ""}?`,
+                          action: {
+                            label: "Enable all",
+                            onClick: async () => {
+                              try {
+                                for (const m of monitors) {
+                                  const existing = (m as any).notificationChannels as string[] | undefined;
+                                  if (!existing || !existing.includes("telegram")) {
+                                    await updateMonitor({
+                                      id: m._id,
+                                      notificationChannels: [...(existing ?? ["email"]), "telegram"] as any,
+                                    });
+                                  }
+                                }
+                                toast.success(`Telegram enabled on all monitors`);
+                              } catch {
+                                toast.error("Failed to update monitors");
+                              }
+                            },
+                          },
+                          duration: 10000,
+                        });
+                      } else {
+                        toast.success("Telegram connected", { description: "Test message sent" });
+                      }
                     } catch (e) {
                       toast.error("Failed to connect", {
                         description: e instanceof Error ? e.message : "Check your Chat ID and try again",
@@ -484,7 +513,34 @@ export default function SettingsPage() {
                       await sendDiscordTest({ webhookUrl: discordWebhook });
                       await upsertSetting({ channel: "discord", enabled: true, target: discordWebhook });
                       trackNotificationChannelToggled({ channel: "discord", enabled: true });
-                      toast.success("Discord connected", { description: "Test message sent" });
+
+                      if (monitors.length > 0) {
+                        toast.success("Discord connected!", {
+                          description: `Enable Discord notifications on all ${monitors.length} monitor${monitors.length !== 1 ? "s" : ""}?`,
+                          action: {
+                            label: "Enable all",
+                            onClick: async () => {
+                              try {
+                                for (const m of monitors) {
+                                  const existing = (m as any).notificationChannels as string[] | undefined;
+                                  if (!existing || !existing.includes("discord")) {
+                                    await updateMonitor({
+                                      id: m._id,
+                                      notificationChannels: [...(existing ?? ["email"]), "discord"] as any,
+                                    });
+                                  }
+                                }
+                                toast.success(`Discord enabled on all monitors`);
+                              } catch {
+                                toast.error("Failed to update monitors");
+                              }
+                            },
+                          },
+                          duration: 10000,
+                        });
+                      } else {
+                        toast.success("Discord connected", { description: "Test message sent" });
+                      }
                     } catch (e) {
                       toast.error("Failed to connect", {
                         description: e instanceof Error ? e.message : "Check your webhook URL and try again",
