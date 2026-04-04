@@ -31,23 +31,29 @@ export default function DashboardPage() {
   const { tier, maxMonitors } = useTier();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const atLimit = monitors.length >= maxMonitors;
 
   // Handle ?clone query params — open the create sheet with pre-populated data
-  const cloneHandled = useRef(false);
+  const lastHandledCloneRef = useRef<string | null>(null);
   useEffect(() => {
-    if (cloneHandled.current) return;
     const cloneId = searchParams.get("clone");
-    if (cloneId) {
-      cloneHandled.current = true;
+    if (!cloneId) {
+      lastHandledCloneRef.current = null;
+      return;
+    }
+    if (cloneId === lastHandledCloneRef.current) return;
+    lastHandledCloneRef.current = cloneId;
+    if (atLimit) {
+      toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
+    } else {
       const name = searchParams.get("name") ?? "";
       const url = searchParams.get("url") ?? "";
       const prompt = searchParams.get("prompt") ?? "";
       openWithDefaults({ name, url, prompt });
-      // Clean up the URL
-      router.replace("/dashboard", { scroll: false });
     }
-  }, [searchParams, openWithDefaults, router]);
-  const atLimit = monitors.length >= maxMonitors;
+    // Clean up the URL
+    router.replace("/dashboard", { scroll: false });
+  }, [searchParams, openWithDefaults, router, atLimit]);
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
   const createLog = useMutation(api.logs.create);
@@ -268,6 +274,10 @@ export default function DashboardPage() {
                 if (m) setDeleteTarget(m);
               }}
               onClone={(m) => {
+                if (atLimit) {
+                  toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
+                  return;
+                }
                 openWithDefaults({
                   name: `${m.name} (copy)`,
                   url: m.url,
