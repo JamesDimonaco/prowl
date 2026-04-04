@@ -15,8 +15,15 @@ import { CreateMonitorSheet } from "@/components/prowl/create-monitor-sheet";
 import { toast } from "sonner";
 import { trackMonitorCreated, trackScanStarted, trackScanCompleted, trackScanFailed } from "@/lib/posthog";
 
+interface CloneDefaults {
+  name: string;
+  url: string;
+  prompt: string;
+}
+
 interface CreateMonitorContextValue {
   open: () => void;
+  openWithDefaults: (defaults: CloneDefaults) => void;
   resume: (monitorId: Id<"monitors">) => void;
   activeMonitorId: Id<"monitors"> | null;
   isScanning: boolean;
@@ -25,6 +32,7 @@ interface CreateMonitorContextValue {
 
 const CreateMonitorContext = createContext<CreateMonitorContextValue>({
   open: () => {},
+  openWithDefaults: () => {},
   resume: () => {},
   activeMonitorId: null,
   isScanning: false,
@@ -39,6 +47,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeMonitorId, setActiveMonitorId] = useState<Id<"monitors"> | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [cloneDefaults, setCloneDefaults] = useState<CloneDefaults | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const isSubmittingRef = useRef(false);
@@ -53,6 +62,15 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
     if (!isScanning) {
       setActiveMonitorId(null);
     }
+    setCloneDefaults(null);
+    setSheetOpen(true);
+  }, [isScanning]);
+
+  const openWithDefaults = useCallback((defaults: CloneDefaults) => {
+    if (!isScanning) {
+      setActiveMonitorId(null);
+    }
+    setCloneDefaults(defaults);
     setSheetOpen(true);
   }, [isScanning]);
 
@@ -234,7 +252,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
 
   return (
     <CreateMonitorContext.Provider
-      value={{ open, resume, activeMonitorId, isScanning, isOpen: sheetOpen }}
+      value={{ open, openWithDefaults, resume, activeMonitorId, isScanning, isOpen: sheetOpen }}
     >
       {children}
       <CreateMonitorSheet
@@ -245,6 +263,8 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         onStartScan={startScan}
         onCancelScan={cancelScan}
         onConfirm={confirmMonitor}
+        cloneDefaults={cloneDefaults}
+        onCloneDefaultsConsumed={() => setCloneDefaults(null)}
       />
     </CreateMonitorContext.Provider>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Radar, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useMonitors } from "@/hooks/use-monitors";
 import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import { useTier } from "@/hooks/use-tier";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
@@ -26,9 +27,36 @@ import {
 
 export default function DashboardPage() {
   const { monitors, togglePause, deleteMonitor, updateMonitor } = useMonitors();
-  const { open: openCreate } = useCreateMonitor();
+  const { open: openCreate, openWithDefaults } = useCreateMonitor();
   const { tier, maxMonitors } = useTier();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const atLimit = monitors.length >= maxMonitors;
+
+  function handleClone(source: { name: string; url: string; prompt: string }) {
+    if (atLimit) {
+      toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
+      return false;
+    }
+    openWithDefaults({ name: `${source.name} (copy)`, url: source.url, prompt: source.prompt });
+    return true;
+  }
+
+  // Handle ?clone query param — resolve from loaded monitors instead of reading data from the URL
+  const lastHandledCloneRef = useRef<string | null>(null);
+  useEffect(() => {
+    const cloneId = searchParams.get("clone");
+    if (!cloneId) {
+      lastHandledCloneRef.current = null;
+      return;
+    }
+    if (cloneId === lastHandledCloneRef.current) return;
+    const source = monitors.find((m) => m._id === cloneId);
+    if (!source) return; // Still loading — wait for monitors to populate
+    lastHandledCloneRef.current = cloneId;
+    handleClone(source);
+    router.replace("/dashboard", { scroll: false });
+  }, [searchParams, monitors, openWithDefaults, router, atLimit]);
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
   const createLog = useMutation(api.logs.create);
@@ -248,6 +276,7 @@ export default function DashboardPage() {
                 const m = monitors.find((x) => x._id === id);
                 if (m) setDeleteTarget(m);
               }}
+              onClone={(m) => handleClone(m)}
             />
           ))
         )}
