@@ -30,6 +30,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMonitor, useMonitorResults, useMonitors } from "@/hooks/use-monitors";
+import { useTier } from "@/hooks/use-tier";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { applyMatchConditions, getItemKey } from "@prowl/shared";
@@ -46,7 +47,9 @@ export default function MonitorDetailPage({
   const monitorId = id as Id<"monitors">;
   const monitor = useMonitor(monitorId);
   const results = useMonitorResults(monitorId);
-  const { togglePause, deleteMonitor, updateMonitor } = useMonitors();
+  const { monitors, togglePause, deleteMonitor, updateMonitor } = useMonitors();
+  const { maxMonitors } = useTier();
+  const atLimit = monitors.length >= maxMonitors;
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
   const router = useRouter();
@@ -150,6 +153,10 @@ export default function MonitorDetailPage({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
+                  if (atLimit) {
+                    toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
+                    return;
+                  }
                   router.push(`/dashboard?clone=${monitorId}`);
                 }}
               >
