@@ -33,7 +33,16 @@ export default function DashboardPage() {
   const router = useRouter();
   const atLimit = monitors.length >= maxMonitors;
 
-  // Handle ?clone query params — open the create sheet with pre-populated data
+  function handleClone(source: { name: string; url: string; prompt: string }) {
+    if (atLimit) {
+      toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
+      return false;
+    }
+    openWithDefaults({ name: `${source.name} (copy)`, url: source.url, prompt: source.prompt });
+    return true;
+  }
+
+  // Handle ?clone query param — resolve from loaded monitors instead of reading data from the URL
   const lastHandledCloneRef = useRef<string | null>(null);
   useEffect(() => {
     const cloneId = searchParams.get("clone");
@@ -42,18 +51,12 @@ export default function DashboardPage() {
       return;
     }
     if (cloneId === lastHandledCloneRef.current) return;
+    const source = monitors.find((m) => m._id === cloneId);
+    if (!source) return; // Still loading — wait for monitors to populate
     lastHandledCloneRef.current = cloneId;
-    if (atLimit) {
-      toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
-    } else {
-      const name = searchParams.get("name") ?? "";
-      const url = searchParams.get("url") ?? "";
-      const prompt = searchParams.get("prompt") ?? "";
-      openWithDefaults({ name, url, prompt });
-    }
-    // Clean up the URL
+    handleClone(source);
     router.replace("/dashboard", { scroll: false });
-  }, [searchParams, openWithDefaults, router, atLimit]);
+  }, [searchParams, monitors, openWithDefaults, router, atLimit]);
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
   const createLog = useMutation(api.logs.create);
@@ -273,17 +276,7 @@ export default function DashboardPage() {
                 const m = monitors.find((x) => x._id === id);
                 if (m) setDeleteTarget(m);
               }}
-              onClone={(m) => {
-                if (atLimit) {
-                  toast.error("Monitor limit reached", { description: "Upgrade your plan to add more monitors." });
-                  return;
-                }
-                openWithDefaults({
-                  name: `${m.name} (copy)`,
-                  url: m.url,
-                  prompt: m.prompt,
-                });
-              }}
+              onClone={(m) => handleClone(m)}
             />
           ))
         )}

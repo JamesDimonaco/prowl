@@ -150,14 +150,7 @@ export default function MonitorDetailPage({
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
-                  // Clone — open create sheet with this monitor's data
-                  const params = new URLSearchParams({
-                    clone: monitorId,
-                    name: `${monitor.name} (copy)`,
-                    url: monitor.url,
-                    prompt: monitor.prompt,
-                  });
-                  router.push(`/dashboard?${params.toString()}`);
+                  router.push(`/dashboard?clone=${monitorId}`);
                 }}
               >
                 <Copy className="mr-2 h-4 w-4" /> Clone
