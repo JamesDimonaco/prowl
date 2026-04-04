@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Search, Radar, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { useMonitors } from "@/hooks/use-monitors";
 import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import { useTier } from "@/hooks/use-tier";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
@@ -26,8 +27,26 @@ import {
 
 export default function DashboardPage() {
   const { monitors, togglePause, deleteMonitor, updateMonitor } = useMonitors();
-  const { open: openCreate } = useCreateMonitor();
+  const { open: openCreate, openWithDefaults } = useCreateMonitor();
   const { tier, maxMonitors } = useTier();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Handle ?clone query params — open the create sheet with pre-populated data
+  const cloneHandled = useRef(false);
+  useEffect(() => {
+    if (cloneHandled.current) return;
+    const cloneId = searchParams.get("clone");
+    if (cloneId) {
+      cloneHandled.current = true;
+      const name = searchParams.get("name") ?? "";
+      const url = searchParams.get("url") ?? "";
+      const prompt = searchParams.get("prompt") ?? "";
+      openWithDefaults({ name, url, prompt });
+      // Clean up the URL
+      router.replace("/dashboard", { scroll: false });
+    }
+  }, [searchParams, openWithDefaults, router]);
   const atLimit = monitors.length >= maxMonitors;
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
@@ -247,6 +266,13 @@ export default function DashboardPage() {
               onDelete={(id) => {
                 const m = monitors.find((x) => x._id === id);
                 if (m) setDeleteTarget(m);
+              }}
+              onClone={(m) => {
+                openWithDefaults({
+                  name: `${m.name} (copy)`,
+                  url: m.url,
+                  prompt: m.prompt,
+                });
               }}
             />
           ))

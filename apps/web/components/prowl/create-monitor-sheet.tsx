@@ -51,6 +51,8 @@ interface CreateMonitorSheetProps {
   }) => void;
   onCancelScan: () => void;
   onConfirm: () => void;
+  cloneDefaults?: { name: string; url: string; prompt: string } | null;
+  onCloneDefaultsConsumed?: () => void;
 }
 
 export function CreateMonitorSheet({
@@ -61,6 +63,8 @@ export function CreateMonitorSheet({
   onStartScan,
   onCancelScan,
   onConfirm,
+  cloneDefaults,
+  onCloneDefaultsConsumed,
 }: CreateMonitorSheetProps) {
   // Form state (only used before scan starts)
   const router = useRouter();
@@ -121,6 +125,16 @@ export function CreateMonitorSheet({
     }
     prevOpenRef.current = open;
   }, [open, activeMonitorId, isScanning, notifSettings]);
+
+  // Pre-populate form when clone defaults are provided
+  useEffect(() => {
+    if (cloneDefaults && open) {
+      setName(cloneDefaults.name);
+      setUrl(cloneDefaults.url);
+      setPrompt(cloneDefaults.prompt);
+      onCloneDefaultsConsumed?.();
+    }
+  }, [cloneDefaults, open, onCloneDefaultsConsumed]);
 
   // When monitor loads with schema, init edited conditions
   useEffect(() => {

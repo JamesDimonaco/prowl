@@ -21,6 +21,7 @@ import {
   ArrowRight,
   RefreshCw,
   BellOff,
+  Copy,
 } from "lucide-react";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import Link from "next/link";
@@ -34,9 +35,10 @@ interface MonitorCardProps {
   onTogglePause: (id: Id<"monitors">) => void;
   onDelete: (id: Id<"monitors">) => void;
   onRescan?: (id: Id<"monitors">) => void;
+  onClone?: (monitor: Doc<"monitors">) => void;
 }
 
-export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan }: MonitorCardProps) {
+export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClone }: MonitorCardProps) {
   const router = useRouter();
 
   const statusBorderColor =
@@ -104,7 +106,7 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan }: Moni
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => router.push(`/dashboard/monitors/${monitor._id}`)}>
                 <ArrowRight className="mr-2 h-4 w-4" />
-                View Details
+                Inspect
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => window.open(monitor.url, "_blank")}>
                 <ExternalLink className="mr-2 h-4 w-4" />
@@ -117,6 +119,11 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan }: Moni
                   <><Pause className="mr-2 h-4 w-4" /> Pause</>
                 )}
               </DropdownMenuItem>
+              {onClone && (
+                <DropdownMenuItem onClick={() => onClone(monitor)}>
+                  <Copy className="mr-2 h-4 w-4" /> Clone
+                </DropdownMenuItem>
+              )}
               {isDev && onRescan && (
                 <DropdownMenuItem onClick={() => onRescan(monitor._id)}>
                   <RefreshCw className="mr-2 h-4 w-4" />
