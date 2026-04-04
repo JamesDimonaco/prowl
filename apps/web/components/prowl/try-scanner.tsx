@@ -12,11 +12,11 @@ import { toast } from "sonner";
 
 const EXAMPLES = [
   {
-    label: "Price drops",
-    emoji: "💰",
-    name: "MacBook Pro deals",
-    url: "https://www.apple.com/shop/refurbished/mac/macbook-pro",
-    prompt: "MacBook Pro under $1500",
+    label: "RAM prices",
+    emoji: "💾",
+    name: "DDR5 RAM deals",
+    url: "https://www.newegg.com/p/pl?N=100007611%20601203950",
+    prompt: "DDR5 RAM 32GB kit under $200",
   },
   {
     label: "Restock alerts",
@@ -40,11 +40,11 @@ const EXAMPLES = [
     prompt: "3 bedroom house under £400,000",
   },
   {
-    label: "Deal hunting",
-    emoji: "🔥",
-    name: "Tech deals",
-    url: "https://www.hotukdeals.com/search?q=laptop",
-    prompt: "Laptop deal with at least 100 degrees hot",
+    label: "Sneaker drops",
+    emoji: "👟",
+    name: "Nike Dunks",
+    url: "https://www.nike.com/w/dunk-shoes-90aohzy7ok",
+    prompt: "Nike Dunk Low in stock under $120",
   },
 ];
 
