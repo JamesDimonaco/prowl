@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 
@@ -16,10 +16,11 @@ export function HeroCTA() {
         {isLoggedIn ? "Go to Dashboard" : "Start Monitoring Free"}
         <ArrowRight className="h-5 w-5" />
       </Link>
-      <a href="#how-it-works" className="w-full sm:w-auto">
-        <Button variant="outline" size="lg" className="h-12 px-8 text-base font-medium w-full sm:w-auto">
-          See how it works
-        </Button>
+      <a
+        href="#how-it-works"
+        className={buttonVariants({ variant: "outline", size: "lg", className: "h-12 px-8 text-base font-medium w-full sm:w-auto" })}
+      >
+        See how it works
       </a>
     </div>
   );

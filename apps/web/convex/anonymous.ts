@@ -38,14 +38,7 @@ export const createAnonymous = mutation({
       throw new Error("We've reached the daily limit for free scans. Create a free account to scan now!");
     }
 
-    // Increment counter
-    if (counter) {
-      await ctx.db.patch(counter._id, { count: counter.count + 1 });
-    } else {
-      await ctx.db.insert("anonymousScanCounter", { date: today, count: 1 });
-    }
-
-    // Validate URL with SSRF protection
+    // Validate URL with SSRF protection (before incrementing counter)
     let parsed: URL;
     try {
       parsed = new URL(args.url);
@@ -92,6 +85,13 @@ export const createAnonymous = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Increment counter only after successful monitor creation
+    if (counter) {
+      await ctx.db.patch(counter._id, { count: counter.count + 1 });
+    } else {
+      await ctx.db.insert("anonymousScanCounter", { date: today, count: 1 });
+    }
 
     return { monitorId, anonId };
   },
@@ -320,14 +320,13 @@ export const deleteExpiredMonitors = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Find expired anonymous monitors using index
-    const anonMonitors = await ctx.db
+    // Find expired anonymous monitors using compound index
+    const expired = await ctx.db
       .query("monitors")
-      .withIndex("by_isAnonymous", (q) => q.eq("isAnonymous", true))
+      .withIndex("by_isAnonymous_expiresAt", (q) =>
+        q.eq("isAnonymous", true).lt("expiresAt", now)
+      )
       .collect();
-    const expired = anonMonitors.filter(
-      (m) => m.expiresAt && m.expiresAt < now
-    );
 
     let deleted = 0;
     for (const monitor of expired) {

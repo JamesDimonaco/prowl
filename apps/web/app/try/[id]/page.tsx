@@ -176,15 +176,24 @@ export default function TryResultPage({
                 {items.slice(0, 10).map((item, i) => {
                   const title = String(item.title ?? item.name ?? `Item ${i + 1}`);
                   const price = item.price != null ? `$${Number(item.price).toLocaleString()}` : null;
-                  const url = item.url ? String(item.url) : null;
+                  const rawUrl = item.url ? String(item.url) : null;
+                  let safeUrl: string | null = null;
+                  if (rawUrl) {
+                    try {
+                      const parsed = new URL(rawUrl);
+                      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+                        safeUrl = rawUrl;
+                      }
+                    } catch {}
+                  }
 
                   return (
                     <Card key={i} className="border-border/30 bg-card/50">
                       <CardContent className="p-3 sm:p-4">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            {url ? (
-                              <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary transition-colors truncate block">
+                            {safeUrl ? (
+                              <a href={safeUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary transition-colors truncate block">
                                 {title}
                               </a>
                             ) : (

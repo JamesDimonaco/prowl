@@ -108,6 +108,15 @@ export const totalCount = query({
   },
 });
 
+/** Public: total non-anonymous monitors (excludes try-before-signup demos) */
+export const publicCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("monitors").collect();
+    return all.filter((m) => !m.isAnonymous).length;
+  },
+});
+
 export const list = query({
   args: {},
   handler: async (ctx) => {

@@ -5,7 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 export function MonitorCountBadge() {
-  const totalMonitors = useQuery(api.monitors.totalCount);
+  const totalMonitors = useQuery(api.monitors.publicCount);
 
   if (!totalMonitors || totalMonitors <= 0) return null;
 

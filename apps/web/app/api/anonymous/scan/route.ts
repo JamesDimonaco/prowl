@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { logger } from "@/lib/server-logger";
+import { createHash } from "crypto";
+import { resolve4, resolve6 } from "dns/promises";
 
 export const maxDuration = 120;
 
@@ -15,6 +17,11 @@ function getClientIp(request: Request): string {
   );
 }
 
+/** Hash IP for logging — never log raw IPs */
+function hashIp(ip: string): string {
+  return createHash("sha256").update(ip).digest("hex").slice(0, 12);
+}
+
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
   const hourAgo = now - 60 * 60 * 1000;
@@ -27,21 +34,59 @@ function isRateLimited(ip: string): boolean {
   }
 
   const lastRequest = ipRequests.get(ip);
-  if (lastRequest && lastRequest > hourAgo) {
-    return true; // Already scanned in the last hour
+  return !!(lastRequest && lastRequest > hourAgo);
+}
+
+function recordRequest(ip: string): void {
+  ipRequests.set(ip, Date.now());
+}
+
+/** Resolve hostname and reject private/internal IPs */
+async function isHostAllowed(hostname: string): Promise<boolean> {
+  let addresses: string[] = [];
+  try {
+    const [ipv4, ipv6] = await Promise.allSettled([
+      resolve4(hostname),
+      resolve6(hostname),
+    ]);
+    if (ipv4.status === "fulfilled") addresses.push(...ipv4.value);
+    if (ipv6.status === "fulfilled") addresses.push(...ipv6.value);
+  } catch {
+    // DNS resolution failed — allow through (scraper will fail naturally)
+    return true;
   }
 
-  ipRequests.set(ip, now);
-  return false;
+  for (const addr of addresses) {
+    // IPv6 loopback
+    if (addr === "::1" || addr === "::") return false;
+
+    const parts = addr.split(".").map(Number);
+    if (parts.length === 4) {
+      const [a, b] = parts;
+      if (
+        a === 127 ||                                    // loopback
+        a === 10 ||                                     // 10.0.0.0/8
+        (a === 172 && b! >= 16 && b! <= 31) ||          // 172.16.0.0/12
+        (a === 192 && b === 168) ||                     // 192.168.0.0/16
+        (a === 169 && b === 254) ||                     // link-local / metadata
+        a === 0                                         // 0.0.0.0/8
+      ) {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 export async function POST(request: Request) {
   const startTime = Date.now();
   const ip = getClientIp(request);
+  const ipHash = hashIp(ip);
 
   // IP rate limit: 1 anonymous scan per hour per IP
   if (isRateLimited(ip)) {
-    logger.warn("anonymous-scan: rate limited", { ip });
+    logger.warn("anonymous-scan: rate limited", { ip: ipHash });
     after(() => logger.flush());
     return NextResponse.json(
       { error: "You can try one free scan per hour. Create a free account for unlimited scans!" },
@@ -72,12 +117,13 @@ export async function POST(request: Request) {
   }
 
   // URL validation + SSRF protection
+  let parsedUrl: URL;
   try {
-    const parsed = new URL(body.url);
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    parsedUrl = new URL(body.url);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
       return NextResponse.json({ error: "Only http/https URLs are allowed" }, { status: 400 });
     }
-    const hostname = parsed.hostname.toLowerCase();
+    const hostname = parsedUrl.hostname.toLowerCase();
     const blocked = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "metadata.google.internal", "169.254.169.254"];
     if (blocked.includes(hostname) || !hostname.includes(".")) {
       return NextResponse.json({ error: "This URL is not allowed" }, { status: 400 });
@@ -89,14 +135,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "This URL is not allowed" }, { status: 400 });
       }
     }
+    // DNS-based SSRF check: resolve hostname and reject private IPs
+    if (!(await isHostAllowed(hostname))) {
+      return NextResponse.json({ error: "This URL is not allowed" }, { status: 400 });
+    }
   } catch {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  const domain = (() => { try { return new URL(body.url).hostname; } catch { return body.url; } })();
+  const domain = parsedUrl.hostname;
 
   try {
-    logger.info("anonymous-scan: started", { ip, url: domain, prompt_length: body.prompt.length });
+    logger.info("anonymous-scan: started", { ip: ipHash, url: domain, prompt_length: body.prompt.length });
 
     const res = await fetch(`${scraperUrl}/api/extract`, {
       method: "POST",
@@ -128,8 +178,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: String(errorMsg) }, { status: clientStatus });
     }
 
+    // Only consume the rate limit quota on successful scans
+    recordRequest(ip);
+
     const d = data as Record<string, unknown>;
     logger.info("anonymous-scan: completed", {
+      ip: ipHash,
       url: domain,
       duration_ms: durationMs,
       items: Number(d.totalItems ?? 0),
