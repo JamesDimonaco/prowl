@@ -184,6 +184,7 @@ export const runScheduledChecks = internalAction({
     // Run checks concurrently (up to MAX_CONCURRENT_CHECKS)
     const results = await Promise.allSettled(
       monitors.map(async (monitor) => {
+        const startTime = Date.now();
         try {
           const checkCount = monitor.checkCount ?? 0;
           const needsReextract = checkCount > 0 && checkCount % FULL_REEXTRACT_EVERY === 0;
@@ -196,6 +197,22 @@ export const runScheduledChecks = internalAction({
             checkResult = await runQuickCheck(ctx, monitor, scraperUrl, scraperKey);
           }
 
+          // Log successful check
+          const displayTotalItems = checkResult.totalItems > 0
+            ? checkResult.totalItems
+            : (Array.isArray((monitor.schema as any)?.items) ? (monitor.schema as any).items.length : 0);
+          await ctx.runMutation(internal.logs.createInternal, {
+            userId: monitor.userId,
+            monitorId: monitor._id,
+            monitorName: monitor.name,
+            url: monitor.url,
+            prompt: monitor.prompt,
+            status: "success",
+            durationMs: Date.now() - startTime,
+            itemCount: displayTotalItems,
+            matchCount: checkResult.matchCount,
+          }).catch(() => {});
+
           // Only notify on NEW matches (not when the same match persists across checks)
           const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
           const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
@@ -206,13 +223,18 @@ export const runScheduledChecks = internalAction({
             const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
             const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
+            // Use the monitor's last known item count if the check didn't extract items (e.g. quick check)
+            const displayTotalItems = checkResult.totalItems > 0
+              ? checkResult.totalItems
+              : (Array.isArray((monitor.schema as any)?.items) ? (monitor.schema as any).items.length : 0);
+
             // Create in-app notification (unless all channels explicitly disabled)
             if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
               userId: monitor.userId,
               monitorId: monitor._id,
               channel: "in_app",
               title: `${monitor.name} — ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""}`,
-              message: `Found ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""} out of ${checkResult.totalItems} items on ${monitor.url}`,
+              message: `Found ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""} out of ${displayTotalItems} items on ${monitor.url}`,
             }).catch(() => {});
 
             // Send email
@@ -224,7 +246,7 @@ export const runScheduledChecks = internalAction({
                 url: monitor.url,
                 matchCount: checkResult.matchCount,
                 matches: checkResult.matches,
-                totalItems: checkResult.totalItems,
+                totalItems: displayTotalItems,
               }).catch(() => {});
             }
 
@@ -241,7 +263,7 @@ export const runScheduledChecks = internalAction({
                   monitorId: monitor._id,
                   url: monitor.url,
                   matchCount: checkResult.matchCount,
-                  totalItems: checkResult.totalItems,
+                  totalItems: displayTotalItems,
                 }).catch(() => {});
               }
             }
@@ -259,7 +281,7 @@ export const runScheduledChecks = internalAction({
                   monitorId: monitor._id,
                   url: monitor.url,
                   matchCount: checkResult.matchCount,
-                  totalItems: checkResult.totalItems,
+                  totalItems: displayTotalItems,
                 }).catch(() => {});
               }
             }
@@ -267,6 +289,20 @@ export const runScheduledChecks = internalAction({
         } catch (e) {
           const msg = e instanceof Error ? e.message : "Unknown error";
           console.error(`[scheduler] Monitor ${monitor._id} failed:`, msg);
+
+          const isTimeout = msg.includes("timed out") || msg.includes("Timeout") || msg.includes("TimeoutError");
+
+          // Log failed check
+          await ctx.runMutation(internal.logs.createInternal, {
+            userId: monitor.userId,
+            monitorId: monitor._id,
+            monitorName: monitor.name,
+            url: monitor.url,
+            prompt: monitor.prompt,
+            status: isTimeout ? "timeout" : "error",
+            durationMs: Date.now() - startTime,
+            error: msg,
+          }).catch(() => {});
 
           // Check if this will max out retries
           const retryCount = (monitor.retryCount ?? 0) + 1;

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 
 export const create = mutation({
   args: {
@@ -32,13 +32,39 @@ export const create = mutation({
   },
 });
 
+/** Internal: create a scrape log without auth (for scheduler) */
+export const createInternal = internalMutation({
+  args: {
+    userId: v.string(),
+    monitorId: v.optional(v.id("monitors")),
+    monitorName: v.optional(v.string()),
+    url: v.string(),
+    prompt: v.string(),
+    status: v.union(v.literal("success"), v.literal("error"), v.literal("timeout")),
+    durationMs: v.number(),
+    error: v.optional(v.string()),
+    itemCount: v.optional(v.number()),
+    matchCount: v.optional(v.number()),
+    aiConfidence: v.optional(v.number()),
+    aiUnderstanding: v.optional(v.string()),
+    aiNotices: v.optional(v.array(v.string())),
+    matchConditions: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    return ctx.db.insert("scrapeLogs", {
+      ...args,
+      createdAt: Date.now(),
+    });
+  },
+});
+
 export const list = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit }) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return [];
 
-    const safeLimit = Math.min(Math.max(Math.floor(limit ?? 50), 1), 100);
+    const safeLimit = Math.min(Math.max(Math.floor(limit ?? 50), 1), 500);
 
     return ctx.db
       .query("scrapeLogs")
