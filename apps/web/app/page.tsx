@@ -1,51 +1,16 @@
-"use client";
-
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Radar, ArrowRight, Zap, Globe, Bell, Shield, Github } from "lucide-react";
+import { Zap, Globe, Bell, Shield, Github, Radar } from "lucide-react";
 import Link from "next/link";
-import { authClient } from "@/lib/auth-client";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { PLANS } from "@/lib/plans";
+import { LandingNav } from "@/components/prowl/landing-nav";
+import { HeroCTA } from "@/components/prowl/hero-cta";
+import { MonitorCountBadge } from "@/components/prowl/monitor-count-badge";
 import { TryScanner } from "@/components/prowl/try-scanner";
 
 export default function LandingPage() {
-  const session = authClient.useSession();
-  const isLoggedIn = !session.isPending && !!session.data?.user;
-  const ctaHref = isLoggedIn ? "/dashboard" : "/login";
-  const totalMonitors = useQuery(api.monitors.totalCount);
-
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Nav */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link href={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <Radar className="h-5 w-5 text-primary" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">PageAlert</span>
-          </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {isLoggedIn ? (
-              <Link href="/dashboard" className={buttonVariants({ size: "sm", className: "gap-2" })}>
-                Go to Dashboard
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className={buttonVariants({ variant: "ghost", size: "sm", className: "text-muted-foreground hover:text-foreground" })}>
-                  Sign in
-                </Link>
-                <Link href="/login" className={buttonVariants({ size: "sm", className: "gap-2" })}>
-                  Get Started
-                  <ArrowRight className="h-4 w-4 hidden sm:inline" />
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* Nav (client — auth-aware) */}
+      <LandingNav />
 
       {/* Hero */}
       <main className="flex-1">
@@ -60,33 +25,25 @@ export default function LandingPage() {
             <div className="mx-auto max-w-3xl text-center">
               <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
                 <Zap className="h-3.5 w-3.5" />
-                AI-powered web monitoring
+                AI-powered website monitoring
               </div>
 
               <h1 className="text-3xl font-bold tracking-tight leading-[1.1] sm:text-5xl lg:text-7xl lg:tracking-tighter">
-                Monitor any website.
+                Monitor any website for
                 <br />
                 <span className="bg-gradient-to-r from-primary via-blue-400 to-primary bg-clip-text text-transparent">
-                  Just describe it.
+                  price drops &amp; restocks.
                 </span>
               </h1>
 
               <p className="mx-auto mt-8 max-w-xl text-lg leading-relaxed text-muted-foreground font-normal">
-                Paste a URL, tell PageAlert what you&apos;re looking for in plain English,
-                and get notified when it appears. No CSS selectors. No code. Just results.
+                Describe what you&apos;re looking for in plain English and get notified
+                when it appears. Track prices, stock availability, new listings, and
+                more &mdash; no code or CSS selectors needed.
               </p>
 
-              <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href={ctaHref} className={buttonVariants({ size: "lg", className: "gap-2 h-12 px-8 text-base font-semibold shadow-lg shadow-primary/20 w-full sm:w-auto" })}>
-                  {isLoggedIn ? "Go to Dashboard" : "Start Monitoring"}
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-                <a href="#how-it-works" className="w-full sm:w-auto">
-                  <Button variant="outline" size="lg" className="h-12 px-8 text-base font-medium w-full sm:w-auto">
-                    See how it works
-                  </Button>
-                </a>
-              </div>
+              {/* CTA (client — auth-aware) */}
+              <HeroCTA />
 
               {/* Trust signals */}
               <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
@@ -98,12 +55,8 @@ export default function LandingPage() {
                   <Github className="h-3.5 w-3.5" />
                   Open source
                 </span>
-                {(totalMonitors ?? 0) > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <Zap className="h-3.5 w-3.5" />
-                    {totalMonitors?.toLocaleString()} monitors created
-                  </span>
-                )}
+                {/* Monitor count (client — Convex query) */}
+                <MonitorCountBadge />
               </div>
 
               {/* Use case examples */}
@@ -121,7 +74,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Interactive try-it scanner */}
+            {/* Interactive try-it scanner (client) */}
             <TryScanner />
           </div>
         </section>
@@ -132,7 +85,7 @@ export default function LandingPage() {
             <div className="mx-auto max-w-2xl text-center mb-16">
               <h2 className="text-3xl font-bold tracking-tight leading-tight">How it works</h2>
               <p className="mt-4 text-muted-foreground leading-relaxed">
-                Three steps to never miss a thing online again
+                Three steps to never miss a price drop, restock, or listing again
               </p>
             </div>
 
@@ -142,11 +95,11 @@ export default function LandingPage() {
                   icon: Globe,
                   title: "Paste any URL",
                   description:
-                    "Works with any website. Product pages, stock listings, job boards, classified ads - if it's on the web, PageAlert can watch it.",
+                    "Works with any website. Product pages, stock listings, job boards, classified ads — if it's on the web, PageAlert can watch it.",
                 },
                 {
                   icon: Zap,
-                  title: "Describe in English",
+                  title: "Describe in plain English",
                   description:
                     "No CSS selectors or XPath. Just describe what you're looking for like you'd tell a friend. AI handles the extraction.",
                 },
@@ -210,11 +163,15 @@ export default function LandingPage() {
                       </li>
                     ))}
                   </ul>
-                  <Link href={ctaHref} className={buttonVariants({
-                    variant: plan.popular ? "default" : "outline",
-                    className: `w-full mt-8 ${plan.popular ? "shadow-md shadow-primary/20" : ""}`,
-                  })}>
-                    {isLoggedIn ? "Go to Dashboard" : "Get started"}
+                  <Link
+                    href="/login"
+                    className={`mt-8 flex w-full items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                      plan.popular
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
+                        : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                  >
+                    Get started
                   </Link>
                 </div>
               ))}
