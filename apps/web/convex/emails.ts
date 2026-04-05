@@ -299,6 +299,11 @@ export const sendAnonymousScanComplete = internalAction({
         text: `Your scan is ready!\n\nWe found ${args.totalItems} items${args.matchCount > 0 ? ` with ${args.matchCount} matches` : ""} on ${args.monitorName}.\n\nView results: ${APP_URL}/try/${args.monitorId}\n\nWe'll check every 24 hours and email you when new matches appear.\n\nCreate a free account for more: ${APP_URL}/login`,
       }),
       signal: AbortSignal.timeout(RESEND_TIMEOUT),
-    }).catch((e) => console.error("[emails] Anonymous scan email failed:", e));
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("[emails] Anonymous scan email failed:", res.status, body);
+    }
   },
 });

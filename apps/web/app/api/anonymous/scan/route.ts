@@ -124,7 +124,8 @@ export async function POST(request: Request) {
       const errorMsg = (data as Record<string, unknown>)?.error ?? "Scan failed";
       logger.error("anonymous-scan: scraper error", { url: domain, status: res.status, error: String(errorMsg), duration_ms: durationMs });
       after(() => logger.flush());
-      return NextResponse.json({ error: String(errorMsg) }, { status: res.status });
+      const clientStatus = res.status >= 400 && res.status < 500 ? 400 : 502;
+      return NextResponse.json({ error: String(errorMsg) }, { status: clientStatus });
     }
 
     const d = data as Record<string, unknown>;

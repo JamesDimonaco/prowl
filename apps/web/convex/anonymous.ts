@@ -320,10 +320,13 @@ export const deleteExpiredMonitors = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Find all anonymous monitors that have expired
-    const allMonitors = await ctx.db.query("monitors").collect();
-    const expired = allMonitors.filter(
-      (m) => m.isAnonymous && m.expiresAt && m.expiresAt < now
+    // Find expired anonymous monitors using index
+    const anonMonitors = await ctx.db
+      .query("monitors")
+      .withIndex("by_isAnonymous", (q) => q.eq("isAnonymous", true))
+      .collect();
+    const expired = anonMonitors.filter(
+      (m) => m.expiresAt && m.expiresAt < now
     );
 
     let deleted = 0;

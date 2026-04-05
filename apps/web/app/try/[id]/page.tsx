@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -34,21 +34,19 @@ export default function TryResultPage({
 
   const [email, setEmail] = useState("");
   const [claiming, setClaiming] = useState(false);
+  const [anonId, setAnonId] = useState<string | null>(null);
   const claimMutation = useMutation(api.anonymous.claimWithEmail);
 
-  // Get anonId from localStorage
-  const anonId = typeof window !== "undefined"
-    ? (() => {
-        try {
-          const stored = localStorage.getItem("pagealert_anon_monitor");
-          if (stored) {
-            const data = JSON.parse(stored);
-            if (data.monitorId === id) return data.anonId as string;
-          }
-        } catch {}
-        return null;
-      })()
-    : null;
+  // Read anonId from localStorage on mount (avoid hydration mismatch)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("pagealert_anon_monitor");
+      if (stored) {
+        const data = JSON.parse(stored);
+        if (data.monitorId === id) setAnonId(data.anonId);
+      }
+    } catch {}
+  }, [id]);
 
   if (monitor === undefined) {
     return (

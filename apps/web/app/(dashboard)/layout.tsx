@@ -43,12 +43,14 @@ export default function DashboardLayout({
         }
       } catch {}
 
-      claimAnonymous({ monitorId, anonId } as any).then((result) => {
+      claimAnonymous({ monitorId, anonId }).then((result) => {
         if (result.transferred > 0) {
           localStorage.removeItem("pagealert_anon_monitor");
           toast.success(`${result.transferred} monitor${result.transferred !== 1 ? "s" : ""} transferred from your free scan!`);
         }
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error("[dashboard] Failed to claim anonymous monitors:", err);
+      });
     }
   }, [isAuthenticated, claimAnonymous]);
 
