@@ -35,6 +35,24 @@ export function validateMonitorUrl(url: string, maxLength = 2048): URL {
       throw new Error("URLs pointing to private/internal IP addresses are not allowed");
     }
   }
+  // Block IPv6 private/link-local/loopback ranges (fc00::/7, fe80::/10, ::1, ::ffff-mapped private)
+  const ipv6Match = hostname.match(/^\[([a-f0-9:]+(?:\.\d+)*)\]$/i);
+  if (ipv6Match) {
+    const addr = ipv6Match[1]!.toLowerCase();
+    if (
+      addr === "::1" ||
+      addr === "::" ||
+      addr.startsWith("fc") ||
+      addr.startsWith("fd") ||
+      addr.startsWith("fe80") ||
+      addr.startsWith("::ffff:127.") ||
+      addr.startsWith("::ffff:10.") ||
+      addr.startsWith("::ffff:192.168.") ||
+      addr.startsWith("::ffff:0.")
+    ) {
+      throw new Error("URLs pointing to private/internal IP addresses are not allowed");
+    }
+  }
   if (!hostname.includes(".")) {
     throw new Error("URL must use a fully qualified domain name");
   }

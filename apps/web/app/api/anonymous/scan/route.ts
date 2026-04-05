@@ -135,6 +135,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "This URL is not allowed" }, { status: 400 });
       }
     }
+    // Block IPv6 private/link-local/loopback ranges
+    const ipv6Match = hostname.match(/^\[([a-f0-9:]+(?:\.\d+)*)\]$/i);
+    if (ipv6Match) {
+      const addr = ipv6Match[1]!.toLowerCase();
+      if (
+        addr === "::1" || addr === "::" ||
+        addr.startsWith("fc") || addr.startsWith("fd") || addr.startsWith("fe80") ||
+        addr.startsWith("::ffff:127.") || addr.startsWith("::ffff:10.") ||
+        addr.startsWith("::ffff:192.168.") || addr.startsWith("::ffff:0.")
+      ) {
+        return NextResponse.json({ error: "This URL is not allowed" }, { status: 400 });
+      }
+    }
     // DNS-based SSRF check: resolve hostname and reject private IPs
     if (!(await isHostAllowed(hostname))) {
       return NextResponse.json({ error: "This URL is not allowed" }, { status: 400 });
