@@ -47,7 +47,8 @@ export default defineSchema({
     .index("by_userId_status", ["userId", "status"])
     .index("by_nextCheckAt", ["nextCheckAt"])
     .index("by_anonymousEmail", ["anonymousEmail"])
-    .index("by_isAnonymous", ["isAnonymous"]),
+    .index("by_isAnonymous", ["isAnonymous"])
+    .index("by_isAnonymous_expiresAt", ["isAnonymous", "expiresAt"]),
 
   scrapeResults: defineTable({
     monitorId: v.id("monitors"),
