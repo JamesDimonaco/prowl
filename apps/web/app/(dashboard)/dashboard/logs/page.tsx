@@ -50,15 +50,17 @@ export default function LogsPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  // Derive unique monitors for the filter dropdown
+  // Derive unique monitors for the filter dropdown (keyed by stable monitorId)
   const monitors = useMemo(() => {
     if (!logs) return [];
     const seen = new Map<string, string>();
     for (const log of logs) {
-      const key = log.monitorName ?? log.url;
-      if (!seen.has(key)) seen.set(key, key);
+      const key = log.monitorId ?? log.url;
+      const label = log.monitorName ?? log.url;
+      if (!seen.has(key)) seen.set(key, label);
     }
-    return Array.from(seen.keys()).sort();
+    return Array.from(seen.entries())
+      .sort(([, a], [, b]) => a.localeCompare(b));
   }, [logs]);
 
   // Apply filters
@@ -66,7 +68,7 @@ export default function LogsPage() {
     if (!logs) return [];
     return logs.filter((log) => {
       if (statusFilter !== "all" && log.status !== statusFilter) return false;
-      if (monitorFilter !== "all" && (log.monitorName ?? log.url) !== monitorFilter) return false;
+      if (monitorFilter !== "all" && (log.monitorId ?? log.url) !== monitorFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         const matches =
@@ -88,12 +90,24 @@ export default function LogsPage() {
     });
   }
 
-  // Group logs by monitor
+  // Build a label lookup from stable key → display name
+  const monitorLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    if (logs) {
+      for (const log of logs) {
+        const key = log.monitorId ?? log.url;
+        if (!map.has(key)) map.set(key, log.monitorName ?? log.url);
+      }
+    }
+    return map;
+  }, [logs]);
+
+  // Group logs by monitor (keyed by monitorId)
   const grouped = useMemo(() => {
     if (groupBy !== "monitor") return null;
     const map = new Map<string, typeof filtered>();
     for (const log of filtered) {
-      const key = log.monitorName ?? log.url;
+      const key = log.monitorId ?? log.url;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(log);
     }
@@ -138,9 +152,9 @@ export default function LogsPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All monitors</SelectItem>
-              {monitors.map((m) => (
-                <SelectItem key={m} value={m}>
-                  <span className="truncate max-w-[140px] block">{m}</span>
+              {monitors.map(([key, label]) => (
+                <SelectItem key={key} value={key}>
+                  <span className="truncate max-w-[140px] block">{label}</span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -177,14 +191,15 @@ export default function LogsPage() {
       ) : grouped ? (
         // Grouped view
         <div className="space-y-4">
-          {grouped.map(([monitorName, groupLogs]) => {
-            const isCollapsed = collapsedGroups.has(monitorName);
+          {grouped.map(([groupKey, groupLogs]) => {
+            const isCollapsed = collapsedGroups.has(groupKey);
+            const label = monitorLabels.get(groupKey) ?? groupKey;
             const successCount = groupLogs.filter((l) => l.status === "success").length;
             const errorCount = groupLogs.filter((l) => l.status !== "success").length;
             return (
-              <div key={monitorName} className="rounded-xl border border-border/30 bg-card/30 overflow-hidden">
+              <div key={groupKey} className="rounded-xl border border-border/30 bg-card/30 overflow-hidden">
                 <button
-                  onClick={() => toggleGroup(monitorName)}
+                  onClick={() => toggleGroup(groupKey)}
                   className="w-full flex items-center justify-between p-4 hover:bg-card/50 transition-colors text-left"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -193,7 +208,7 @@ export default function LogsPage() {
                     ) : (
                       <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                     )}
-                    <span className="text-sm font-semibold truncate">{monitorName}</span>
+                    <span className="text-sm font-semibold truncate">{label}</span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
                     <span>{groupLogs.length} log{groupLogs.length !== 1 ? "s" : ""}</span>

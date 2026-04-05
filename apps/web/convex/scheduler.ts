@@ -189,7 +189,7 @@ export const runScheduledChecks = internalAction({
           const checkCount = monitor.checkCount ?? 0;
           const needsReextract = checkCount > 0 && checkCount % FULL_REEXTRACT_EVERY === 0;
 
-          let checkResult: { hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number };
+          let checkResult: { hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number | null };
 
           if (needsReextract && monitor.schema) {
             checkResult = await runFullExtract(ctx, monitor, scraperUrl, scraperKey);
@@ -197,8 +197,8 @@ export const runScheduledChecks = internalAction({
             checkResult = await runQuickCheck(ctx, monitor, scraperUrl, scraperKey);
           }
 
-          // Log successful check
-          const displayTotalItems = checkResult.totalItems > 0
+          // Log successful check — use monitor's last known item count when totalItems is unknown
+          const displayTotalItems = checkResult.totalItems != null
             ? checkResult.totalItems
             : (Array.isArray((monitor.schema as any)?.items) ? (monitor.schema as any).items.length : 0);
           await ctx.runMutation(internal.logs.createInternal, {
@@ -222,11 +222,6 @@ export const runScheduledChecks = internalAction({
             const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
             const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
             const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
-
-            // Use the monitor's last known item count if the check didn't extract items (e.g. quick check)
-            const displayTotalItems = checkResult.totalItems > 0
-              ? checkResult.totalItems
-              : (Array.isArray((monitor.schema as any)?.items) ? (monitor.schema as any).items.length : 0);
 
             // Create in-app notification (unless all channels explicitly disabled)
             if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
@@ -290,7 +285,9 @@ export const runScheduledChecks = internalAction({
           const msg = e instanceof Error ? e.message : "Unknown error";
           console.error(`[scheduler] Monitor ${monitor._id} failed:`, msg);
 
-          const isTimeout = msg.includes("timed out") || msg.includes("Timeout") || msg.includes("TimeoutError");
+          const isTimeout =
+            (e instanceof Error && e.name === "TimeoutError") ||
+            msg.includes("timed out") || msg.includes("Timeout");
 
           // Log failed check
           await ctx.runMutation(internal.logs.createInternal, {
@@ -396,7 +393,7 @@ async function runQuickCheck(
   monitor: any,
   scraperUrl: string,
   scraperKey: string
-): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number }> {
+): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number | null }> {
   const matchConditions = monitor.schema?.matchConditions ?? {};
 
   const res = await fetch(`${scraperUrl}/api/quick-check`, {
@@ -440,7 +437,7 @@ async function runQuickCheck(
   const matchData = hasMatch
     ? [{ quickCheck: true, keywordResults: result.keywordResults, priceResults: result.priceResults }]
     : [];
-  return { hasMatch, matchCount: hasMatch ? 1 : 0, matches: matchData, totalItems: 0 };
+  return { hasMatch, matchCount: hasMatch ? 1 : 0, matches: matchData, totalItems: null };
 }
 
 async function runFullExtract(
@@ -450,7 +447,7 @@ async function runFullExtract(
   monitor: any,
   scraperUrl: string,
   scraperKey: string
-): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number }> {
+): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number | null }> {
   // First check page is accessible before burning AI credits
   const quickRes = await fetch(`${scraperUrl}/api/quick-check`, {
     method: "POST",
@@ -478,7 +475,7 @@ async function runFullExtract(
         matches: [],
         // No error field — this is informational, not a retry-worthy failure
       });
-      return { hasMatch: false, matchCount: 0, matches: [], totalItems: 0 };
+      return { hasMatch: false, matchCount: 0, matches: [], totalItems: null };
     }
   }
 
@@ -516,7 +513,7 @@ async function runFullExtract(
       matches: [],
       // No error field — informational, not retry-worthy
     });
-    return { hasMatch: false, matchCount: 0, matches: [], totalItems: 0 };
+    return { hasMatch: false, matchCount: 0, matches: [], totalItems: null };
   }
 
   const allMatches = result.matches ?? [];
