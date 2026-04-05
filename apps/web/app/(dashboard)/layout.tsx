@@ -30,6 +30,7 @@ export default function DashboardLayout({
   // Transfer anonymous monitors on first dashboard load
   useEffect(() => {
     if (isAuthenticated && !claimedRef.current) {
+      claimedRef.current = true; // Prevent concurrent runs
       let monitorId: string | undefined;
       let anonId: string | undefined;
       try {
@@ -51,7 +52,7 @@ export default function DashboardLayout({
         }
       }).catch((err) => {
         console.error("[dashboard] Failed to claim anonymous monitors:", err);
-        // Don't set claimedRef — allow retry on next render
+        claimedRef.current = false; // Allow retry on next render
       });
     }
   }, [isAuthenticated, claimAnonymous]);
