@@ -247,7 +247,7 @@ export default function MonitorDetailPage({
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <HistoryTab results={results} />
+          <HistoryTab results={results} priceAlerts={(monitor as any).priceAlerts} />
         </TabsContent>
       </Tabs>
 

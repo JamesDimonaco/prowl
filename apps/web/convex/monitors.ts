@@ -452,6 +452,7 @@ export const sendInitialScanNotifications = internalAction({
         matchCount: args.matchCount,
         matches: [],
         totalItems: args.totalItems,
+        tracksPrices: !!(monitor.schema as any)?.insights?.tracksPrices,
       }).catch((e) => console.error("[monitors] Notification failed:", e));
     }
 

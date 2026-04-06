@@ -248,6 +248,7 @@ export const runScheduledChecks = internalAction({
                   matchCount: checkResult.matchCount,
                   matches: checkResult.matches,
                   totalItems: displayTotalItems,
+                  tracksPrices: !!(freshMonitor.schema as any)?.insights?.tracksPrices,
                 }).catch(() => {});
               }
 

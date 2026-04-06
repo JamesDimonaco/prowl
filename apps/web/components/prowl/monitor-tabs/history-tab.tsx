@@ -22,12 +22,18 @@ import {
   History,
   ChevronDown,
   ChevronUp,
+  Target,
 } from "lucide-react";
 import type { Doc } from "@/convex/_generated/dataModel";
 import { timeAgo } from "@/lib/time";
 
 interface HistoryTabProps {
   results: Doc<"scrapeResults">[];
+  priceAlerts?: {
+    trackedItems: string[];
+    belowThreshold?: number;
+    aboveThreshold?: number;
+  };
 }
 
 function formatDate(timestamp: number): string {
@@ -36,7 +42,7 @@ function formatDate(timestamp: number): string {
 
 type FilterType = "all" | "matches" | "changes" | "errors";
 
-export function HistoryTab({ results }: HistoryTabProps) {
+export function HistoryTab({ results, priceAlerts }: HistoryTabProps) {
   const [filter, setFilter] = useState<FilterType>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -157,6 +163,18 @@ export function HistoryTab({ results }: HistoryTabProps) {
                                 }
                               </Badge>
                             )}
+                            {hasChanges && priceAlerts?.belowThreshold && result.changes!.priceChanges.some((p) => p.newPrice <= priceAlerts.belowThreshold!) && (
+                              <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1">
+                                <Target className="h-3 w-3" />
+                                Below ${priceAlerts.belowThreshold.toLocaleString()}
+                              </Badge>
+                            )}
+                            {hasChanges && priceAlerts?.aboveThreshold && result.changes!.priceChanges.some((p) => p.newPrice >= priceAlerts.aboveThreshold!) && (
+                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1">
+                                <Target className="h-3 w-3" />
+                                Above ${priceAlerts.aboveThreshold.toLocaleString()}
+                              </Badge>
+                            )}
                             {result.error && (
                               <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20">
                                 Error
@@ -255,28 +273,47 @@ export function HistoryTab({ results }: HistoryTabProps) {
                                   </p>
                                 </div>
                                 <div className="space-y-1">
-                                  {result.changes.priceChanges.map((pc, i) => (
-                                    <div key={i} className="rounded bg-background/50 border border-border/30 px-3 py-2 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
-                                      <span className="font-medium break-words sm:truncate sm:max-w-xs">{pc.title}</span>
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-muted-foreground line-through">${pc.oldPrice.toLocaleString()}</span>
-                                        <span className="font-semibold">${pc.newPrice.toLocaleString()}</span>
-                                        <span className={`font-semibold ${pc.change < 0 ? "text-emerald-400" : "text-red-400"}`}>
-                                          {pc.change < 0 ? (
-                                            <span className="flex items-center gap-0.5">
-                                              <TrendingDown className="h-3 w-3" />
-                                              {Math.abs(pc.changePercent)}%
-                                            </span>
-                                          ) : (
-                                            <span className="flex items-center gap-0.5">
-                                              <TrendingUp className="h-3 w-3" />
-                                              {pc.changePercent}%
-                                            </span>
-                                          )}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
+                                  {(() => {
+                                    const tracked = priceAlerts?.trackedItems
+                                      ? result.changes!.priceChanges.filter((pc) =>
+                                          priceAlerts.trackedItems.some((t) => t.toLowerCase().includes(pc.title.toLowerCase()) || pc.title.toLowerCase().includes(t.split("-")[0]?.toLowerCase() ?? ""))
+                                        )
+                                      : result.changes!.priceChanges;
+                                    const untracked = priceAlerts?.trackedItems
+                                      ? result.changes!.priceChanges.filter((pc) => !tracked.includes(pc))
+                                      : [];
+                                    return (
+                                      <>
+                                        {tracked.map((pc, i) => (
+                                          <div key={i} className="rounded bg-background/50 border border-border/30 px-3 py-2 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1 sm:gap-2">
+                                            <span className="font-medium break-words sm:truncate sm:max-w-xs">{pc.title}</span>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                              <span className="text-muted-foreground line-through">${pc.oldPrice.toLocaleString()}</span>
+                                              <span className="font-semibold">${pc.newPrice.toLocaleString()}</span>
+                                              <span className={`font-semibold ${pc.change < 0 ? "text-emerald-400" : "text-red-400"}`}>
+                                                {pc.change < 0 ? (
+                                                  <span className="flex items-center gap-0.5">
+                                                    <TrendingDown className="h-3 w-3" />
+                                                    {Math.abs(pc.changePercent)}%
+                                                  </span>
+                                                ) : (
+                                                  <span className="flex items-center gap-0.5">
+                                                    <TrendingUp className="h-3 w-3" />
+                                                    {pc.changePercent}%
+                                                  </span>
+                                                )}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                        {untracked.length > 0 && (
+                                          <p className="text-xs text-muted-foreground pl-3 pt-1">
+                                            and {untracked.length} other price change{untracked.length !== 1 ? "s" : ""} on non-tracked items
+                                          </p>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             )}

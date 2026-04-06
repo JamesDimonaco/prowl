@@ -40,6 +40,7 @@ export const sendMatchAlert = internalAction({
     matchCount: v.number(),
     matches: v.array(v.any()),
     totalItems: v.number(),
+    tracksPrices: v.optional(v.boolean()),
   },
   handler: async (_ctx, args) => {
     const apiKey = process.env.RESEND_API_KEY;
@@ -87,6 +88,14 @@ export const sendMatchAlert = internalAction({
 
     const moreText = !isQuickCheck && args.matchCount > 5 ? `<p style="color:#666;font-size:14px">+${args.matchCount - 5} more matches</p>` : "";
 
+    const priceDiscovery = args.tracksPrices
+      ? `<div style="margin-top:24px;padding-top:24px;border-top:1px solid #eee">
+          <p style="margin:0 0 8px;color:#333;font-size:14px">📊 This page has prices — want price drop alerts?</p>
+          <p style="margin:0 0 12px;color:#666;font-size:13px">Set up price tracking to get notified when prices change.</p>
+          <a href="${APP_URL}/dashboard/monitors/${args.monitorId}?section=price-alerts" style="color:#4f46e5;font-size:13px;font-weight:500;text-decoration:none">Set up price alerts →</a>
+        </div>`
+      : "";
+
     const html = `
 <!DOCTYPE html>
 <html>
@@ -108,6 +117,7 @@ export const sendMatchAlert = internalAction({
           <a href="${safeHref(viewOnSiteUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-right:8px">View on site</a>
           <a href="${APP_URL}/dashboard/monitors/${args.monitorId}" style="display:inline-block;background:#f4f4f5;color:#333;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px">View in PageAlert</a>
         </div>
+        ${priceDiscovery}
       </div>
       <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #eee">
         <p style="margin:0;color:#999;font-size:12px">
@@ -121,9 +131,12 @@ export const sendMatchAlert = internalAction({
 </html>`;
 
     const plainItemsText = args.totalItems > 0 ? ` out of ${args.totalItems} items` : "";
+    const priceDiscoveryText = args.tracksPrices
+      ? "\n\nThis page has prices — set up price tracking to get notified when prices change.\nSet up price alerts: " + `${APP_URL}/dashboard/monitors/${args.monitorId}?section=price-alerts`
+      : "";
     const text = isQuickCheck
-      ? `Match Found — ${args.monitorName}\n\nYour monitor detected matching keywords on ${safeHostname(args.url)}.\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}`
-      : `Match Found — ${args.monitorName}\n\nYour monitor found ${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}${plainItemsText} on ${safeHostname(args.url)}.\n\n${args.matches.slice(0, 5).map((m: Record<string, unknown>) => `• ${String(m.title ?? m.name ?? "Item")}${m.price != null ? ` — $${Number(m.price)}` : ""}`).join("\n")}\n${args.matchCount > 5 ? `+${args.matchCount - 5} more` : ""}\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}`;
+      ? `Match Found — ${args.monitorName}\n\nYour monitor detected matching keywords on ${safeHostname(args.url)}.\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}` + priceDiscoveryText
+      : `Match Found — ${args.monitorName}\n\nYour monitor found ${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}${plainItemsText} on ${safeHostname(args.url)}.\n\n${args.matches.slice(0, 5).map((m: Record<string, unknown>) => `• ${String(m.title ?? m.name ?? "Item")}${m.price != null ? ` — $${Number(m.price)}` : ""}`).join("\n")}\n${args.matchCount > 5 ? `+${args.matchCount - 5} more` : ""}\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}` + priceDiscoveryText;
 
     try {
       const res = await fetch("https://api.resend.com/emails", {
