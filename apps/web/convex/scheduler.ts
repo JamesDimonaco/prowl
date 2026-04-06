@@ -219,15 +219,16 @@ export const runScheduledChecks = internalAction({
             if (!freshMonitor) console.log(`[scheduler] Monitor ${monitor._id} deleted during check, skipping notifications`);
             // Data already recorded above — just skip notifications
           } else {
+            // Per-monitor channel filtering using fresh data (shared by match + price notifications)
+            const monitorChannels = (freshMonitor as any).notificationChannels as string[] | undefined;
+            const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
+            const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
+
             // Only notify on NEW matches (not when the same match persists across checks)
             const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
             const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
 
             if (isNewMatch) {
-              // Per-monitor channel filtering using fresh data
-              const monitorChannels = (freshMonitor as any).notificationChannels as string[] | undefined;
-              const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
-              const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
               // Create in-app notification (unless all channels explicitly disabled)
               if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
@@ -363,7 +364,7 @@ export const runScheduledChecks = internalAction({
                         await ctx.runMutation(internal.scheduler.updatePriceAlertTimestamp, {
                           monitorId: freshMonitor._id,
                           lastNotifiedAt: Date.now(),
-                        }).catch((e) => console.error(`[scheduler] Failed to update price alert cooldown for ${freshMonitor._id}:`, e));
+                        }).catch((e) => console.error(`[scheduler] Failed to update price alert cooldown for ${freshMonitor._id} — may cause duplicate alerts:`, e));
 
                         // Determine template variant
                         const hasThresholdCrossing = belowHits.length > 0 || aboveHits.length > 0;
@@ -381,11 +382,6 @@ export const runScheduledChecks = internalAction({
                           aboveHits,
                           trackedItemCount: priceAlerts.trackedItems.length,
                         };
-
-                        // Per-monitor channel filtering
-                        const monitorChannels = (freshMonitor as any).notificationChannels as string[] | undefined;
-                        const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
-                        const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
                         // Email
                         if (shouldSend("email") && freshMonitor.userEmail) {

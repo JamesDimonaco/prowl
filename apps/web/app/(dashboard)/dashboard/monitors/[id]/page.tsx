@@ -42,6 +42,18 @@ import type { ExtractedItem, ExtractionSchema } from "@prowl/shared";
 import { toast } from "sonner";
 import { trackEvent, captureException } from "@/lib/posthog";
 
+// Extended monitor type until Convex types are regenerated with npx convex dev
+type MonitorExt = NonNullable<ReturnType<typeof useMonitor>> & {
+  muted?: boolean;
+  priceAlerts?: {
+    trackedItems: string[];
+    belowThreshold?: number;
+    aboveThreshold?: number;
+    onPriceDrop: boolean;
+    onPriceIncrease: boolean;
+  };
+};
+
 export default function MonitorDetailPage({
   params,
 }: {
@@ -126,6 +138,8 @@ export default function MonitorDetailPage({
     );
   }
 
+  const m = monitor as MonitorExt;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -139,7 +153,7 @@ export default function MonitorDetailPage({
           <div className="flex items-center gap-3">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{monitor.name}</h1>
             <StatusBadge status={monitor.status} />
-            {(monitor as any).muted && (
+            {m.muted && (
               <Badge variant="outline" className="gap-1 bg-amber-500/10 text-amber-400 border-amber-500/20">
                 <BellOff className="h-3 w-3" />
                 Muted
@@ -173,7 +187,7 @@ export default function MonitorDetailPage({
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleToggleMute}>
-                {(monitor as any).muted ? (
+                {m.muted ? (
                   <><Bell className="mr-2 h-4 w-4" /> Unmute</>
                 ) : (
                   <><BellOff className="mr-2 h-4 w-4" /> Mute</>
@@ -247,7 +261,7 @@ export default function MonitorDetailPage({
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <HistoryTab results={results} priceAlerts={(monitor as any).priceAlerts} />
+          <HistoryTab results={results} priceAlerts={m.priceAlerts} />
         </TabsContent>
       </Tabs>
 

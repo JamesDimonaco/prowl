@@ -44,15 +44,22 @@ type FilterType = "all" | "matches" | "changes" | "errors";
 
 type PriceChange = { title: string; oldPrice: number; newPrice: number; change: number; changePercent: number };
 
-/** Resolve tracked item keys to lowercase titles for matching against priceChanges */
+/**
+ * Resolve tracked item keys to lowercase titles for matching against priceChanges.
+ *
+ * Keys are stored via getItemKey() which uses URL if available, otherwise "title-price".
+ * URL keys (starting with "http") are kept as-is (won't match titles — those items
+ * show as tracked only if the title happens to equal the URL, which is fine since
+ * URL-keyed items are resolved by the scheduler, not the history tab).
+ * Title-price keys like "MacBook Pro 14-1399" are split on the last dash to extract
+ * the title portion. This assumes prices don't contain dashes, which holds for numeric prices.
+ */
 function resolveTrackedTitles(trackedItems: string[]): Set<string> {
   return new Set(
     trackedItems.map((k) => {
-      // Title-price keys: "MacBook Pro 14-1399" → extract title before last dash
+      if (k.startsWith("http")) return k.toLowerCase();
       const lastDash = k.lastIndexOf("-");
-      if (lastDash > 0 && !k.startsWith("http")) {
-        return k.slice(0, lastDash).toLowerCase();
-      }
+      if (lastDash > 0) return k.slice(0, lastDash).toLowerCase();
       return k.toLowerCase();
     }).filter(Boolean)
   );
