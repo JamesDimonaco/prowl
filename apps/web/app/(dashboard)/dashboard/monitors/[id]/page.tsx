@@ -230,6 +230,7 @@ export default function MonitorDetailPage({
             monitorId={monitorId}
             monitor={monitor}
             matches={matches}
+            allItems={allItems}
             totalItems={allItems.length}
             onRescan={handleRescan}
             onToggleMute={async (id) => {
