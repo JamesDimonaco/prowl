@@ -254,6 +254,17 @@ export const update = mutation({
     checkInterval: v.optional(intervalValidator),
     schema: v.optional(v.any()),
     notificationChannels: v.optional(channelValidator),
+    muted: v.optional(v.boolean()),
+    priceAlerts: v.optional(v.object({
+      onPriceDrop: v.boolean(),
+      onPriceIncrease: v.boolean(),
+      belowThreshold: v.optional(v.number()),
+      aboveThreshold: v.optional(v.number()),
+      trackedItems: v.array(v.string()),
+      minChangePercent: v.optional(v.number()),
+      lastNotifiedAt: v.optional(v.number()),
+      cooldownMs: v.optional(v.number()),
+    })),
   },
   handler: async (ctx, { id, ...fields }) => {
     const userId = await getAuthUserId(ctx);
@@ -291,6 +302,26 @@ export const update = mutation({
       }
     }
 
+    // Validate priceAlerts if provided
+    if (fields.priceAlerts !== undefined) {
+      const pa = fields.priceAlerts;
+      if (pa.belowThreshold !== undefined && pa.belowThreshold <= 0) {
+        throw new Error("Below threshold must be a positive number");
+      }
+      if (pa.aboveThreshold !== undefined && pa.aboveThreshold <= 0) {
+        throw new Error("Above threshold must be a positive number");
+      }
+      if (pa.trackedItems.length > 20) {
+        throw new Error("Cannot track more than 20 items");
+      }
+      if (pa.minChangePercent !== undefined && (pa.minChangePercent < 0 || pa.minChangePercent > 50)) {
+        throw new Error("Min change percent must be between 0 and 50");
+      }
+      if (pa.cooldownMs !== undefined && (pa.cooldownMs < 0 || pa.cooldownMs > 7 * 24 * 60 * 60 * 1000)) {
+        throw new Error("Cooldown must be between 0 and 7 days");
+      }
+    }
+
     const now = Date.now();
     const updates: Record<string, unknown> = { updatedAt: now };
     for (const [key, value] of Object.entries(fields)) {
@@ -306,6 +337,18 @@ export const update = mutation({
 
     await ctx.db.patch(id, updates);
     return id;
+  },
+});
+
+export const toggleMute = mutation({
+  args: { id: v.id("monitors") },
+  handler: async (ctx, { id }) => {
+    const userId = await getAuthUserId(ctx);
+    const monitor = await ctx.db.get(id);
+    if (!monitor || monitor.userId !== userId) throw new Error("Monitor not found");
+    const newMuted = !monitor.muted;
+    await ctx.db.patch(id, { muted: newMuted, updatedAt: Date.now() });
+    return newMuted;
   },
 });
 
@@ -382,6 +425,7 @@ export const sendInitialScanNotifications = internalAction({
   handler: async (ctx, args) => {
     const monitor = await ctx.runQuery(internal.monitors.getInternal, { id: args.monitorId });
     if (!monitor) return;
+    if (monitor.muted) return; // Muted — skip all notifications
 
     const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
     const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);

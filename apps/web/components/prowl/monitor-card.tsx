@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "./status-badge";
 import {
   MoreVertical,
@@ -20,6 +21,7 @@ import {
   Zap,
   ArrowRight,
   RefreshCw,
+  Bell,
   BellOff,
   Copy,
 } from "lucide-react";
@@ -36,9 +38,10 @@ interface MonitorCardProps {
   onDelete: (id: Id<"monitors">) => void;
   onRescan?: (id: Id<"monitors">) => void;
   onClone?: (monitor: Doc<"monitors">) => void;
+  onToggleMute?: (id: Id<"monitors">) => void;
 }
 
-export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClone }: MonitorCardProps) {
+export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClone, onToggleMute }: MonitorCardProps) {
   const router = useRouter();
 
   const statusBorderColor =
@@ -63,6 +66,12 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClon
                 {monitor.name}
               </Link>
               <StatusBadge status={monitor.status} />
+              {(monitor as any).muted && (
+                <Badge variant="outline" className="gap-1 bg-amber-500/10 text-amber-400 border-amber-500/20">
+                  <BellOff className="h-3 w-3" />
+                  Muted
+                </Badge>
+              )}
             </div>
 
             <p className="text-sm text-muted-foreground line-clamp-1 mb-4">
@@ -90,7 +99,7 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClon
                   {monitor.matchCount} match{monitor.matchCount !== 1 && "es"}
                 </span>
               )}
-              {(monitor as any).notificationChannels?.length === 0 && (
+              {!((monitor as any).muted) && (monitor as any).notificationChannels?.length === 0 && (
                 <span className="flex items-center gap-1 text-amber-400">
                   <BellOff className="h-3 w-3" />
                   No alerts
@@ -119,6 +128,15 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClon
                   <><Pause className="mr-2 h-4 w-4" /> Pause</>
                 )}
               </DropdownMenuItem>
+              {onToggleMute && (
+                <DropdownMenuItem onClick={() => onToggleMute(monitor._id)}>
+                  {(monitor as any).muted ? (
+                    <><Bell className="mr-2 h-4 w-4" /> Unmute</>
+                  ) : (
+                    <><BellOff className="mr-2 h-4 w-4" /> Mute</>
+                  )}
+                </DropdownMenuItem>
+              )}
               {onClone && (
                 <DropdownMenuItem onClick={() => onClone(monitor)}>
                   <Copy className="mr-2 h-4 w-4" /> Clone

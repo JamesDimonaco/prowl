@@ -24,6 +24,8 @@ import {
   Loader2,
   AlertTriangle,
   RotateCw,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ExtractedItem, ExtractionSchema } from "@prowl/shared";
@@ -51,12 +53,13 @@ interface OverviewTabProps {
   matches: ExtractedItem[];
   totalItems: number;
   onRescan?: (id: Id<"monitors">) => Promise<void>;
+  onToggleMute?: (id: Id<"monitors">) => Promise<unknown>;
 }
 
 const RETRY_LIMIT = 3;
 const RETRY_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan }: OverviewTabProps) {
+export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan, onToggleMute }: OverviewTabProps) {
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,6 +147,35 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
 
   return (
     <div className="space-y-8">
+      {(monitor as any).muted && (
+        <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <BellOff className="h-5 w-5 text-amber-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-400">Notifications muted</p>
+                  <p className="text-xs text-muted-foreground">This monitor is still scanning but won't send any alerts.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0 border-amber-500/20 hover:bg-amber-500/10"
+                onClick={async () => {
+                  try {
+                    if (onToggleMute) await onToggleMute(monitorId);
+                  } catch {}
+                }}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                Unmute
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Error banner */}
       {monitor.status === "error" && monitor.lastError && (
         <Card className="border-red-500/30 bg-red-500/5 shadow-sm">

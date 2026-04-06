@@ -213,71 +213,73 @@ export const runScheduledChecks = internalAction({
             matchCount: checkResult.matchCount,
           }).catch(() => {});
 
-          // Only notify on NEW matches (not when the same match persists across checks)
-          const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
-          const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
+          if (!monitor.muted) {
+            // Only notify on NEW matches (not when the same match persists across checks)
+            const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
+            const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
 
-          if (isNewMatch) {
-            // Per-monitor channel filtering: if set, only send to those channels
-            const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
-            const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
-            const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
+            if (isNewMatch) {
+              // Per-monitor channel filtering: if set, only send to those channels
+              const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
+              const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
+              const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
-            // Create in-app notification (unless all channels explicitly disabled)
-            if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
-              userId: monitor.userId,
-              monitorId: monitor._id,
-              channel: "in_app",
-              title: `${monitor.name} — ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""}`,
-              message: `Found ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""} out of ${displayTotalItems} items on ${monitor.url}`,
-            }).catch(() => {});
-
-            // Send email
-            if (shouldSend("email") && monitor.userEmail) {
-              await ctx.runAction(internal.emails.sendMatchAlert, {
-                to: monitor.userEmail,
-                monitorName: monitor.name,
-                monitorId: monitor._id,
-                url: monitor.url,
-                matchCount: checkResult.matchCount,
-                matches: checkResult.matches,
-                totalItems: displayTotalItems,
-              }).catch(() => {});
-            }
-
-            // Send to Telegram if configured and enabled for this monitor
-            if (shouldSend("telegram")) {
-              const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+              // Create in-app notification (unless all channels explicitly disabled)
+              if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
                 userId: monitor.userId,
-                channel: "telegram",
-              });
-              if (telegramSetting?.enabled && telegramSetting.target) {
-                await ctx.runAction(internal.telegram.sendMatchAlert, {
-                  chatId: telegramSetting.target,
+                monitorId: monitor._id,
+                channel: "in_app",
+                title: `${monitor.name} — ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""}`,
+                message: `Found ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""} out of ${displayTotalItems} items on ${monitor.url}`,
+              }).catch(() => {});
+
+              // Send email
+              if (shouldSend("email") && monitor.userEmail) {
+                await ctx.runAction(internal.emails.sendMatchAlert, {
+                  to: monitor.userEmail,
                   monitorName: monitor.name,
                   monitorId: monitor._id,
                   url: monitor.url,
                   matchCount: checkResult.matchCount,
+                  matches: checkResult.matches,
                   totalItems: displayTotalItems,
                 }).catch(() => {});
               }
-            }
 
-            // Send to Discord if configured and enabled for this monitor
-            if (shouldSend("discord")) {
-              const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
-                userId: monitor.userId,
-                channel: "discord",
-              });
-              if (discordSetting?.enabled && discordSetting.target) {
-                await ctx.runAction(internal.discord.sendMatchAlert, {
-                  webhookUrl: discordSetting.target,
-                  monitorName: monitor.name,
-                  monitorId: monitor._id,
-                  url: monitor.url,
-                  matchCount: checkResult.matchCount,
-                  totalItems: displayTotalItems,
-                }).catch(() => {});
+              // Send to Telegram if configured and enabled for this monitor
+              if (shouldSend("telegram")) {
+                const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                  userId: monitor.userId,
+                  channel: "telegram",
+                });
+                if (telegramSetting?.enabled && telegramSetting.target) {
+                  await ctx.runAction(internal.telegram.sendMatchAlert, {
+                    chatId: telegramSetting.target,
+                    monitorName: monitor.name,
+                    monitorId: monitor._id,
+                    url: monitor.url,
+                    matchCount: checkResult.matchCount,
+                    totalItems: displayTotalItems,
+                  }).catch(() => {});
+                }
+              }
+
+              // Send to Discord if configured and enabled for this monitor
+              if (shouldSend("discord")) {
+                const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                  userId: monitor.userId,
+                  channel: "discord",
+                });
+                if (discordSetting?.enabled && discordSetting.target) {
+                  await ctx.runAction(internal.discord.sendMatchAlert, {
+                    webhookUrl: discordSetting.target,
+                    monitorName: monitor.name,
+                    monitorId: monitor._id,
+                    url: monitor.url,
+                    matchCount: checkResult.matchCount,
+                    totalItems: displayTotalItems,
+                  }).catch(() => {});
+                }
               }
             }
           }
@@ -315,7 +317,7 @@ export const runScheduledChecks = internalAction({
           });
 
           // Send error notifications when retries exhausted
-          if (willError) {
+          if (willError && !monitor.muted) {
             const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
             const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
             const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;

@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/prowl/status-badge";
 import { DeleteDialog } from "@/components/prowl/delete-dialog";
 import { OverviewTab } from "@/components/prowl/monitor-tabs/overview-tab";
@@ -26,6 +27,8 @@ import {
   History,
   MoreVertical,
   Copy,
+  Bell,
+  BellOff,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,6 +40,7 @@ import { applyMatchConditions, getItemKey } from "@prowl/shared";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ExtractedItem, ExtractionSchema } from "@prowl/shared";
 import { toast } from "sonner";
+import { trackEvent, captureException } from "@/lib/posthog";
 
 export default function MonitorDetailPage({
   params,
@@ -47,7 +51,7 @@ export default function MonitorDetailPage({
   const monitorId = id as Id<"monitors">;
   const monitor = useMonitor(monitorId);
   const results = useMonitorResults(monitorId);
-  const { monitors, togglePause, deleteMonitor, updateMonitor } = useMonitors();
+  const { monitors, togglePause, deleteMonitor, updateMonitor, toggleMute } = useMonitors();
   const { maxMonitors } = useTier();
   const atLimit = monitors.length >= maxMonitors;
   const saveScanResult = useMutation(api.monitors.saveScanResult);
@@ -124,6 +128,12 @@ export default function MonitorDetailPage({
           <div className="flex items-center gap-3">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{monitor.name}</h1>
             <StatusBadge status={monitor.status} />
+            {(monitor as any).muted && (
+              <Badge variant="outline" className="gap-1 bg-amber-500/10 text-amber-400 border-amber-500/20">
+                <BellOff className="h-3 w-3" />
+                Muted
+              </Badge>
+            )}
           </div>
           <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
             &ldquo;{monitor.prompt}&rdquo;
@@ -149,6 +159,24 @@ export default function MonitorDetailPage({
                   <><Play className="mr-2 h-4 w-4" /> Resume</>
                 ) : (
                   <><Pause className="mr-2 h-4 w-4" /> Pause</>
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async () => {
+                  try {
+                    const newMuted = await toggleMute(monitorId);
+                    trackEvent(newMuted ? "monitor_muted" : "monitor_unmuted", { monitor_id: monitorId });
+                    toast.success(newMuted ? "Monitor muted — notifications paused" : "Monitor unmuted — notifications resumed");
+                  } catch (err) {
+                    captureException(err, { context: "toggleMute", monitorId });
+                    toast.error("Failed to update monitor", { description: err instanceof Error ? err.message : "" });
+                  }
+                }}
+              >
+                {(monitor as any).muted ? (
+                  <><Bell className="mr-2 h-4 w-4" /> Unmute</>
+                ) : (
+                  <><BellOff className="mr-2 h-4 w-4" /> Mute</>
                 )}
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -204,6 +232,16 @@ export default function MonitorDetailPage({
             matches={matches}
             totalItems={allItems.length}
             onRescan={handleRescan}
+            onToggleMute={async (id) => {
+              try {
+                const newMuted = await toggleMute(id);
+                trackEvent(newMuted ? "monitor_muted" : "monitor_unmuted", { monitor_id: id });
+                toast.success(newMuted ? "Monitor muted — notifications paused" : "Monitor unmuted — notifications resumed");
+              } catch (err) {
+                captureException(err, { context: "toggleMute_overview", monitorId: id });
+                toast.error("Failed to update monitor", { description: err instanceof Error ? err.message : "" });
+              }
+            }}
           />
         </TabsContent>
 

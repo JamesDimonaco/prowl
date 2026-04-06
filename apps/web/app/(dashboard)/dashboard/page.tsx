@@ -15,7 +15,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { trackMonitorDeleted, trackMonitorPaused, trackMonitorResumed, setUserProperties, captureException } from "@/lib/posthog";
+import { trackMonitorDeleted, trackMonitorPaused, trackMonitorResumed, trackEvent, setUserProperties, captureException } from "@/lib/posthog";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import {
   Select,
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 
 export default function DashboardPage() {
-  const { monitors, togglePause, deleteMonitor, updateMonitor } = useMonitors();
+  const { monitors, togglePause, deleteMonitor, updateMonitor, toggleMute } = useMonitors();
   const { open: openCreate, openWithDefaults } = useCreateMonitor();
   const { tier, maxMonitors } = useTier();
   const searchParams = useSearchParams();
@@ -147,7 +147,7 @@ export default function DashboardPage() {
       m.name.toLowerCase().includes(search.toLowerCase()) ||
       m.url.toLowerCase().includes(search.toLowerCase()) ||
       m.prompt.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "all" || m.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || (statusFilter === "muted" ? !!(m as any).muted : m.status === statusFilter);
     return matchesSearch && matchesStatus;
   });
 
@@ -202,6 +202,7 @@ export default function DashboardPage() {
             <SelectItem value="scanning">Scanning</SelectItem>
             <SelectItem value="paused">Paused</SelectItem>
             <SelectItem value="error">Error</SelectItem>
+            <SelectItem value="muted">Muted</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -272,6 +273,16 @@ export default function DashboardPage() {
                 }
               }}
               onRescan={handleRescan}
+              onToggleMute={async (id) => {
+                try {
+                  const newMuted = await toggleMute(id);
+                  trackEvent(newMuted ? "monitor_muted" : "monitor_unmuted", { monitor_id: id });
+                  toast.success(newMuted ? "Monitor muted — notifications paused" : "Monitor unmuted — notifications resumed");
+                } catch (err) {
+                  captureException(err, { context: "toggleMute", monitorId: id });
+                  toast.error("Failed to update monitor");
+                }
+              }}
               onDelete={(id) => {
                 const m = monitors.find((x) => x._id === id);
                 if (m) setDeleteTarget(m);

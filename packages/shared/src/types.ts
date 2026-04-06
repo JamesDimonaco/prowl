@@ -19,6 +19,10 @@ export interface AiInsights {
   noMatchSignal: string;
   /** Warnings about data limitations (e.g. "RAM not shown on listing page") */
   notices: string[];
+  /** Whether the page contains prices associated with items */
+  tracksPrices: boolean;
+  /** Up to 5 item titles most relevant for price tracking */
+  suggestedPriceTrackItems: string[];
 }
 
 export interface ExtractionSchema {
