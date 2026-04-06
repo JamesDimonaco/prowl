@@ -67,7 +67,7 @@ export const sendPriceAlert = internalAction({
     monitorName: v.string(),
     monitorId: v.string(),
     url: v.string(),
-    variant: v.string(),
+    variant: v.union(v.literal("threshold"), v.literal("single_drop"), v.literal("multiple")),
     priceChanges: v.array(
       v.object({
         title: v.string(),

@@ -42,6 +42,33 @@ function formatDate(timestamp: number): string {
 
 type FilterType = "all" | "matches" | "changes" | "errors";
 
+type PriceChange = { title: string; oldPrice: number; newPrice: number; change: number; changePercent: number };
+
+/** Resolve tracked item keys to lowercase titles for matching against priceChanges */
+function resolveTrackedTitles(trackedItems: string[]): Set<string> {
+  return new Set(
+    trackedItems.map((k) => {
+      // Title-price keys: "MacBook Pro 14-1399" → extract title before last dash
+      const lastDash = k.lastIndexOf("-");
+      if (lastDash > 0 && !k.startsWith("http")) {
+        return k.slice(0, lastDash).toLowerCase();
+      }
+      return k.toLowerCase();
+    }).filter(Boolean)
+  );
+}
+
+function partitionPriceChanges(
+  priceChanges: PriceChange[],
+  trackedItems?: string[]
+): { tracked: PriceChange[]; untracked: PriceChange[] } {
+  if (!trackedItems?.length) return { tracked: priceChanges, untracked: [] };
+  const titles = resolveTrackedTitles(trackedItems);
+  const tracked = priceChanges.filter((pc) => titles.has(pc.title.toLowerCase()));
+  const untracked = priceChanges.filter((pc) => !titles.has(pc.title.toLowerCase()));
+  return { tracked, untracked };
+}
+
 export function HistoryTab({ results, priceAlerts }: HistoryTabProps) {
   const [filter, setFilter] = useState<FilterType>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -163,13 +190,19 @@ export function HistoryTab({ results, priceAlerts }: HistoryTabProps) {
                                 }
                               </Badge>
                             )}
-                            {hasChanges && priceAlerts?.belowThreshold && result.changes!.priceChanges.some((p) => p.newPrice <= priceAlerts.belowThreshold!) && (
+                            {hasChanges && priceAlerts?.belowThreshold && (() => {
+                              const { tracked } = partitionPriceChanges(result.changes!.priceChanges, priceAlerts.trackedItems);
+                              return tracked.some((p) => p.newPrice <= priceAlerts.belowThreshold!);
+                            })() && (
                               <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1">
                                 <Target className="h-3 w-3" />
                                 Below ${priceAlerts.belowThreshold.toLocaleString()}
                               </Badge>
                             )}
-                            {hasChanges && priceAlerts?.aboveThreshold && result.changes!.priceChanges.some((p) => p.newPrice >= priceAlerts.aboveThreshold!) && (
+                            {hasChanges && priceAlerts?.aboveThreshold && (() => {
+                              const { tracked } = partitionPriceChanges(result.changes!.priceChanges, priceAlerts.trackedItems);
+                              return tracked.some((p) => p.newPrice >= priceAlerts.aboveThreshold!);
+                            })() && (
                               <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1">
                                 <Target className="h-3 w-3" />
                                 Above ${priceAlerts.aboveThreshold.toLocaleString()}
@@ -274,14 +307,7 @@ export function HistoryTab({ results, priceAlerts }: HistoryTabProps) {
                                 </div>
                                 <div className="space-y-1">
                                   {(() => {
-                                    const tracked = priceAlerts?.trackedItems
-                                      ? result.changes!.priceChanges.filter((pc) =>
-                                          priceAlerts.trackedItems.some((t) => t.toLowerCase().includes(pc.title.toLowerCase()) || pc.title.toLowerCase().includes(t.split("-")[0]?.toLowerCase() ?? ""))
-                                        )
-                                      : result.changes!.priceChanges;
-                                    const untracked = priceAlerts?.trackedItems
-                                      ? result.changes!.priceChanges.filter((pc) => !tracked.includes(pc))
-                                      : [];
+                                    const { tracked, untracked } = partitionPriceChanges(result.changes!.priceChanges, priceAlerts?.trackedItems);
                                     return (
                                       <>
                                         {tracked.map((pc, i) => (

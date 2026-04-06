@@ -328,7 +328,7 @@ export const sendPriceAlert = internalAction({
     monitorName: v.string(),
     monitorId: v.string(),
     url: v.string(),
-    variant: v.string(),
+    variant: v.union(v.literal("threshold"), v.literal("single_drop"), v.literal("multiple")),
     priceChanges: v.array(v.object({
       title: v.string(),
       oldPrice: v.number(),
@@ -390,8 +390,9 @@ export const sendPriceAlert = internalAction({
 
     // Build price change row HTML
     const row = (item: { title: string; oldPrice: number; newPrice: number; changePercent: number }) => {
-      const arrow = item.newPrice < item.oldPrice ? "▼" : "▲";
-      return `<div style="border-bottom:1px solid #eee;padding:8px 0"><p style="margin:0;font-weight:600;color:#333">${esc(item.title)}</p><p style="margin:4px 0 0;color:#666;font-size:14px">${fmt(item.oldPrice)} → ${fmt(item.newPrice)}  ${arrow} ${pct(item.changePercent)}</p></div>`;
+      const arrow = item.newPrice < item.oldPrice ? "▼" : item.newPrice > item.oldPrice ? "▲" : "";
+      const arrowHtml = arrow ? `  ${arrow} ${pct(item.changePercent)}` : "";
+      return `<div style="border-bottom:1px solid #eee;padding:8px 0"><p style="margin:0;font-weight:600;color:#333">${esc(item.title)}</p><p style="margin:4px 0 0;color:#666;font-size:14px">${fmt(item.oldPrice)} → ${fmt(item.newPrice)}${arrowHtml}</p></div>`;
     };
 
     // Body content

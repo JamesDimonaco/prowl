@@ -367,7 +367,7 @@ export const runScheduledChecks = internalAction({
 
                         // Determine template variant
                         const hasThresholdCrossing = belowHits.length > 0 || aboveHits.length > 0;
-                        const variant = hasThresholdCrossing ? "threshold" : (drops.length === 1 && increases.length === 0 ? "single_drop" : "multiple");
+                        const variant: "threshold" | "single_drop" | "multiple" = hasThresholdCrossing ? "threshold" : (drops.length === 1 && increases.length === 0 ? "single_drop" : "multiple");
 
                         const pricePayload = {
                           monitorName: freshMonitor.name,
@@ -745,6 +745,7 @@ export const updatePriceAlertTimestamp = internalMutation({
   handler: async (ctx, args) => {
     const monitor = await ctx.db.get(args.monitorId);
     if (!monitor) return;
+    // as any: priceAlerts type not in generated types until npx convex dev runs
     const existing = (monitor as any).priceAlerts;
     if (!existing) return;
     await ctx.db.patch(args.monitorId, {
