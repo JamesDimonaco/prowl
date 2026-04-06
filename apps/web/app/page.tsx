@@ -76,13 +76,13 @@ export default function LandingPage() {
               </div>
             </div>
 
+            {/* Example results showcase (inline) */}
+            <ExampleResults />
+
             {/* Interactive try-it scanner (client) */}
             <TryScanner />
           </div>
         </section>
-
-        {/* Example results showcase */}
-        <ExampleResults />
 
         {/* Features */}
         <section id="how-it-works" className="border-t border-border/30 bg-card/20 scroll-mt-20">
@@ -132,8 +132,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Testimonials */}
-        <Testimonials />
+        {/* Testimonials — uncomment when real reviews are collected */}
+        {/* <Testimonials /> */}
 
         {/* Pricing preview */}
         <section className="border-t border-border/30">
