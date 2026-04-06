@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Radar,
   CheckCircle2,
-  ExternalLink,
   TrendingDown,
   Zap,
   Clock,
@@ -98,7 +97,6 @@ export default function ExamplePage() {
                     <div className="flex items-center gap-2 min-w-0">
                       <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                       <span className="text-sm font-medium truncate">{item.title}</span>
-                      <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {item.oldPrice && (
