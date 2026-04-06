@@ -236,14 +236,27 @@ export function PriceAlertCard({ monitorId, priceAlerts, allItems, suggestedPric
         <hr className="border-border/30 mb-4" />
         <div className="space-y-2 mb-4">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={displayPriceDrop} onChange={(e) => editing && setOnPriceDrop(e.target.checked)} disabled={!editing} className="rounded border-border accent-primary h-4 w-4" />
+            <input type="checkbox" checked={displayPriceDrop} onChange={(e) => {
+              if (!editing) { setOnPriceDrop(e.target.checked); setOnPriceIncrease(priceAlerts!.onPriceIncrease); setBelowThreshold(priceAlerts!.belowThreshold?.toString() ?? ""); setAboveThreshold(priceAlerts!.aboveThreshold?.toString() ?? ""); setEditing(true); }
+              else setOnPriceDrop(e.target.checked);
+            }} className="rounded border-border accent-primary h-4 w-4" />
             <TrendingDown className="h-3.5 w-3.5 text-emerald-400" /><span className="text-sm">Notify on price drops</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={displayPriceIncrease} onChange={(e) => editing && setOnPriceIncrease(e.target.checked)} disabled={!editing} className="rounded border-border accent-primary h-4 w-4" />
+            <input type="checkbox" checked={displayPriceIncrease} onChange={(e) => {
+              if (!editing) { setOnPriceIncrease(e.target.checked); setOnPriceDrop(priceAlerts!.onPriceDrop); setBelowThreshold(priceAlerts!.belowThreshold?.toString() ?? ""); setAboveThreshold(priceAlerts!.aboveThreshold?.toString() ?? ""); setEditing(true); }
+              else setOnPriceIncrease(e.target.checked);
+            }} className="rounded border-border accent-primary h-4 w-4" />
             <TrendingUp className="h-3.5 w-3.5 text-amber-400" /><span className="text-sm">Notify on price increases</span>
           </label>
         </div>
+
+        {!editing && (
+          <div className="flex flex-wrap items-center gap-4 mb-4 text-xs text-muted-foreground">
+            <span>Alert below: {priceAlerts!.belowThreshold != null ? <span className="font-medium text-foreground">{sym}{priceAlerts!.belowThreshold.toLocaleString()}</span> : "No limit"}</span>
+            <span>Alert above: {priceAlerts!.aboveThreshold != null ? <span className="font-medium text-foreground">{sym}{priceAlerts!.aboveThreshold.toLocaleString()}</span> : "No limit"}</span>
+          </div>
+        )}
 
         {editing && (
           <div className="flex flex-wrap items-center gap-4 mb-4">
