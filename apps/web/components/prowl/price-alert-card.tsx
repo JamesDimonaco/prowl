@@ -59,7 +59,7 @@ export function PriceAlertCard({ monitorId, priceAlerts, allItems, suggestedPric
     if (!isConfigured && suggestedKeys.length > 0) {
       setSelectedKeys(suggestedKeys);
     }
-  }, [suggestedKeys.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(suggestedKeys)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync edit state when props change from server (e.g. saved from another tab)
   useEffect(() => {
@@ -71,7 +71,12 @@ export function PriceAlertCard({ monitorId, priceAlerts, allItems, suggestedPric
     }
   }, [priceAlerts?.onPriceDrop, priceAlerts?.onPriceIncrease, priceAlerts?.belowThreshold, priceAlerts?.aboveThreshold]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sym = currency === "GBP" ? "\u00a3" : currency === "EUR" ? "\u20ac" : "$";
+  const sym = (() => {
+    try {
+      const parts = new Intl.NumberFormat("en", { style: "currency", currency }).formatToParts(0);
+      return parts.find((p) => p.type === "currency")?.value ?? "$";
+    } catch { return "$"; }
+  })();
 
   async function save(fn: () => Promise<unknown>, successMsg: string, event?: string) {
     setSaving(true);

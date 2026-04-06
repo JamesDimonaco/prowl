@@ -125,8 +125,8 @@ export const sendPriceAlert = internalAction({
       }
 
       description = parts.join("\n");
-    } else if (args.variant === "single_drop") {
-      const item = args.priceChanges[0];
+    } else if (args.variant === "single_drop" && args.priceChanges.length > 0) {
+      const item = args.priceChanges[0]!;
       const pct = Math.abs(item.changePercent).toFixed(1);
       description = `**${item.title}**\n$${item.oldPrice.toFixed(2)} → $${item.newPrice.toFixed(2)} ▼ ${pct}%`;
     } else {

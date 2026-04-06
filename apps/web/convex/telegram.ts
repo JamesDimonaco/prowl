@@ -136,10 +136,10 @@ export const sendPriceAlert = internalAction({
           );
         }
       }
-    } else if (args.variant === "single_drop") {
+    } else if (args.variant === "single_drop" && args.priceChanges.length > 0) {
       lines.push(`📉 *Price Drop — ${escMd(args.monitorName)}*`);
       lines.push("");
-      const item = args.priceChanges[0];
+      const item = args.priceChanges[0]!;
       const pct = Math.abs(item.changePercent).toFixed(1);
       lines.push(`• ${escMd(item.title)}`);
       lines.push(
