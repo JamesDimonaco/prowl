@@ -10,6 +10,7 @@ export function useMonitors() {
   const createMutation = useMutation(api.monitors.create);
   const updateMutation = useMutation(api.monitors.update);
   const removeMutation = useMutation(api.monitors.remove);
+  const toggleMuteMutation = useMutation(api.monitors.toggleMute);
 
   const createMonitor = (data: {
     name: string;
@@ -41,7 +42,9 @@ export function useMonitors() {
     }
   };
 
-  return { monitors, createMonitor, updateMonitor, deleteMonitor, togglePause };
+  const toggleMute = (id: Id<"monitors">) => toggleMuteMutation({ id });
+
+  return { monitors, createMonitor, updateMonitor, deleteMonitor, togglePause, toggleMute };
 }
 
 export function useMonitor(id: Id<"monitors"> | null | undefined) {

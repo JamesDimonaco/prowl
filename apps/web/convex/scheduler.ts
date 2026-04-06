@@ -213,71 +213,236 @@ export const runScheduledChecks = internalAction({
             matchCount: checkResult.matchCount,
           }).catch(() => {});
 
-          // Only notify on NEW matches (not when the same match persists across checks)
-          const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
-          const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
-
-          if (isNewMatch) {
-            // Per-monitor channel filtering: if set, only send to those channels
-            const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
+          // Re-fetch monitor to pick up any user changes (muted, channels) during the long-running check
+          const freshMonitor = await ctx.runQuery(internal.monitors.getInternal, { id: monitor._id });
+          if (!freshMonitor || freshMonitor.muted) {
+            if (!freshMonitor) console.log(`[scheduler] Monitor ${monitor._id} deleted during check, skipping notifications`);
+            // Data already recorded above — just skip notifications
+          } else {
+            // Per-monitor channel filtering using fresh data (shared by match + price notifications)
+            const monitorChannels = (freshMonitor as any).notificationChannels as string[] | undefined;
             const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
             const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
-            // Create in-app notification (unless all channels explicitly disabled)
-            if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
-              userId: monitor.userId,
-              monitorId: monitor._id,
-              channel: "in_app",
-              title: `${monitor.name} — ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""}`,
-              message: `Found ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""} out of ${displayTotalItems} items on ${monitor.url}`,
-            }).catch(() => {});
+            // Only notify on NEW matches (not when the same match persists across checks)
+            const previouslyHadMatches = (monitor.matchCount ?? 0) > 0;
+            const isNewMatch = checkResult.hasMatch && !previouslyHadMatches;
 
-            // Send email
-            if (shouldSend("email") && monitor.userEmail) {
-              await ctx.runAction(internal.emails.sendMatchAlert, {
-                to: monitor.userEmail,
-                monitorName: monitor.name,
-                monitorId: monitor._id,
-                url: monitor.url,
-                matchCount: checkResult.matchCount,
-                matches: checkResult.matches,
-                totalItems: displayTotalItems,
+            if (isNewMatch) {
+
+              // Create in-app notification (unless all channels explicitly disabled)
+              if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
+                userId: freshMonitor.userId,
+                monitorId: freshMonitor._id,
+                channel: "in_app",
+                title: `${freshMonitor.name} — ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""}`,
+                message: `Found ${checkResult.matchCount} match${checkResult.matchCount !== 1 ? "es" : ""} out of ${displayTotalItems} items on ${freshMonitor.url}`,
               }).catch(() => {});
-            }
 
-            // Send to Telegram if configured and enabled for this monitor
-            if (shouldSend("telegram")) {
-              const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
-                userId: monitor.userId,
-                channel: "telegram",
-              });
-              if (telegramSetting?.enabled && telegramSetting.target) {
-                await ctx.runAction(internal.telegram.sendMatchAlert, {
-                  chatId: telegramSetting.target,
-                  monitorName: monitor.name,
-                  monitorId: monitor._id,
-                  url: monitor.url,
+              // Send email
+              if (shouldSend("email") && freshMonitor.userEmail) {
+                await ctx.runAction(internal.emails.sendMatchAlert, {
+                  to: freshMonitor.userEmail,
+                  monitorName: freshMonitor.name,
+                  monitorId: freshMonitor._id,
+                  url: freshMonitor.url,
                   matchCount: checkResult.matchCount,
+                  matches: checkResult.matches,
                   totalItems: displayTotalItems,
+                  tracksPrices: !!(freshMonitor.schema as any)?.insights?.tracksPrices,
                 }).catch(() => {});
+              }
+
+              // Send to Telegram if configured and enabled for this monitor
+              if (shouldSend("telegram")) {
+                const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                  userId: freshMonitor.userId,
+                  channel: "telegram",
+                });
+                if (telegramSetting?.enabled && telegramSetting.target) {
+                  await ctx.runAction(internal.telegram.sendMatchAlert, {
+                    chatId: telegramSetting.target,
+                    monitorName: freshMonitor.name,
+                    monitorId: freshMonitor._id,
+                    url: freshMonitor.url,
+                    matchCount: checkResult.matchCount,
+                    totalItems: displayTotalItems,
+                  }).catch(() => {});
+                }
+              }
+
+              // Send to Discord if configured and enabled for this monitor
+              if (shouldSend("discord")) {
+                const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                  userId: freshMonitor.userId,
+                  channel: "discord",
+                });
+                if (discordSetting?.enabled && discordSetting.target) {
+                  await ctx.runAction(internal.discord.sendMatchAlert, {
+                    webhookUrl: discordSetting.target,
+                    monitorName: freshMonitor.name,
+                    monitorId: freshMonitor._id,
+                    url: freshMonitor.url,
+                    matchCount: checkResult.matchCount,
+                    totalItems: displayTotalItems,
+                  }).catch(() => {});
+                }
               }
             }
 
-            // Send to Discord if configured and enabled for this monitor
-            if (shouldSend("discord")) {
-              const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
-                userId: monitor.userId,
-                channel: "discord",
-              });
-              if (discordSetting?.enabled && discordSetting.target) {
-                await ctx.runAction(internal.discord.sendMatchAlert, {
-                  webhookUrl: discordSetting.target,
-                  monitorName: monitor.name,
-                  monitorId: monitor._id,
-                  url: monitor.url,
-                  matchCount: checkResult.matchCount,
-                  totalItems: displayTotalItems,
-                }).catch(() => {});
+            // --- Price change notifications ---
+            const priceAlerts = (freshMonitor as any).priceAlerts as {
+              onPriceDrop: boolean;
+              onPriceIncrease: boolean;
+              belowThreshold?: number;
+              aboveThreshold?: number;
+              trackedItems: string[];
+              minChangePercent?: number;
+              lastNotifiedAt?: number;
+              cooldownMs?: number;
+            } | undefined;
+
+            if (priceAlerts && priceAlerts.trackedItems.length > 0) {
+              const latestResult = await ctx.runQuery(internal.scheduler.getLatestScrapeResult, { monitorId: freshMonitor._id });
+              const changes = latestResult?.changes as { priceChanges: { title: string; oldPrice: number; newPrice: number; change: number; changePercent: number }[] } | undefined;
+
+              if (changes?.priceChanges?.length) {
+                const schema = freshMonitor.schema as any;
+                const tracksPrices = schema?.insights?.tracksPrices
+                  ?? (Array.isArray(schema?.items) && schema.items.some((i: any) => typeof i.price === "number"));
+
+                if (tracksPrices) {
+                  // Filter to tracked items by title — title-price composite keys are unstable
+                  // across price changes, so we resolve tracked keys to titles and match on that
+                  const allItems = (schema?.items ?? []) as Record<string, unknown>[];
+                  const trackedTitles = new Set(
+                    priceAlerts.trackedItems.map((k) => {
+                      // Try to find the item by key to get its title
+                      const item = allItems.find((i) => {
+                        const iKey = i.url ? String(i.url) : `${String(i.title ?? "")}-${String(i.price ?? "")}`;
+                        return iKey === k;
+                      });
+                      if (item) return String(item.title ?? "").toLowerCase();
+                      // For URL keys, check if any item has this URL
+                      const byUrl = allItems.find((i) => String(i.url ?? "") === k);
+                      if (byUrl) return String(byUrl.title ?? "").toLowerCase();
+                      // Last resort: extract title portion from title-price key
+                      return k.split("-").slice(0, -1).join("-").toLowerCase() || k.toLowerCase();
+                    }).filter(Boolean)
+                  );
+                  const relevantChanges = changes.priceChanges.filter((pc) =>
+                    trackedTitles.has(pc.title.toLowerCase())
+                  );
+
+                  // Apply minimum change threshold
+                  const minPct = priceAlerts.minChangePercent ?? 2;
+                  const significantChanges = relevantChanges.filter((pc) => Math.abs(pc.changePercent) >= minPct);
+
+                  if (significantChanges.length > 0) {
+                    // Check cooldown
+                    const cooldownMs = priceAlerts.cooldownMs ?? 6 * 60 * 60 * 1000;
+                    const lastNotified = priceAlerts.lastNotifiedAt ?? 0;
+
+                    if (Date.now() - lastNotified >= cooldownMs) {
+                      const drops = significantChanges.filter((p) => p.change < 0);
+                      const increases = significantChanges.filter((p) => p.change > 0);
+                      const belowHits = priceAlerts.belowThreshold != null
+                        ? significantChanges.filter((p) => p.newPrice <= priceAlerts.belowThreshold!)
+                        : [];
+                      const aboveHits = priceAlerts.aboveThreshold != null
+                        ? significantChanges.filter((p) => p.newPrice >= priceAlerts.aboveThreshold!)
+                        : [];
+
+                      const shouldNotify =
+                        (priceAlerts.onPriceDrop && drops.length > 0) ||
+                        (priceAlerts.onPriceIncrease && increases.length > 0) ||
+                        belowHits.length > 0 ||
+                        aboveHits.length > 0;
+
+                      if (shouldNotify) {
+                        // Update cooldown
+                        await ctx.runMutation(internal.scheduler.updatePriceAlertTimestamp, {
+                          monitorId: freshMonitor._id,
+                          lastNotifiedAt: Date.now(),
+                        }).catch((e) => console.error(`[scheduler] Failed to update price alert cooldown for ${freshMonitor._id} — may cause duplicate alerts:`, e));
+
+                        // Determine template variant
+                        const hasThresholdCrossing = belowHits.length > 0 || aboveHits.length > 0;
+                        const variant: "threshold" | "single_drop" | "multiple" = hasThresholdCrossing ? "threshold" : (drops.length === 1 && increases.length === 0 ? "single_drop" : "multiple");
+
+                        const pricePayload = {
+                          monitorName: freshMonitor.name,
+                          monitorId: freshMonitor._id,
+                          url: freshMonitor.url,
+                          variant,
+                          priceChanges: significantChanges,
+                          belowThreshold: priceAlerts.belowThreshold,
+                          aboveThreshold: priceAlerts.aboveThreshold,
+                          belowHits,
+                          aboveHits,
+                          trackedItemCount: priceAlerts.trackedItems.length,
+                        };
+
+                        // Email
+                        if (shouldSend("email") && freshMonitor.userEmail) {
+                          await ctx.runAction(internal.emails.sendPriceAlert, {
+                            to: freshMonitor.userEmail,
+                            ...pricePayload,
+                          }).catch(() => {});
+                        }
+
+                        // Telegram
+                        if (shouldSend("telegram")) {
+                          const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                            userId: freshMonitor.userId,
+                            channel: "telegram",
+                          });
+                          if (telegramSetting?.enabled && telegramSetting.target) {
+                            await ctx.runAction(internal.telegram.sendPriceAlert, {
+                              chatId: telegramSetting.target,
+                              ...pricePayload,
+                            }).catch(() => {});
+                          }
+                        }
+
+                        // Discord
+                        if (shouldSend("discord")) {
+                          const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                            userId: freshMonitor.userId,
+                            channel: "discord",
+                          });
+                          if (discordSetting?.enabled && discordSetting.target) {
+                            await ctx.runAction(internal.discord.sendPriceAlert, {
+                              webhookUrl: discordSetting.target,
+                              ...pricePayload,
+                            }).catch(() => {});
+                          }
+                        }
+
+                        // In-app notification (unless all channels explicitly disabled)
+                        if (hasAnyChannel) {
+                          const dropCount = drops.length;
+                          const incCount = increases.length;
+                          const title = hasThresholdCrossing
+                            ? `${freshMonitor.name} — Price target hit!`
+                            : dropCount > 0 && incCount === 0
+                              ? `${freshMonitor.name} — ${dropCount} price drop${dropCount !== 1 ? "s" : ""}`
+                              : `${freshMonitor.name} — ${significantChanges.length} price change${significantChanges.length !== 1 ? "s" : ""}`;
+
+                          await ctx.runMutation(internal.userNotifications.create, {
+                            userId: freshMonitor.userId,
+                            monitorId: freshMonitor._id,
+                            channel: "in_app",
+                            title,
+                            message: significantChanges.map((pc) => `${pc.title}: $${pc.oldPrice} → $${pc.newPrice}`).join(", "),
+                          }).catch(() => {});
+                        }
+
+                        console.log(`[scheduler] Price alert sent for ${freshMonitor._id}: ${significantChanges.length} changes, variant=${variant}`);
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -314,63 +479,66 @@ export const runScheduledChecks = internalAction({
             error: msg,
           });
 
-          // Send error notifications when retries exhausted
+          // Send error notifications when retries exhausted — re-fetch for fresh muted/channel state
           if (willError) {
-            const monitorChannels = (monitor as any).notificationChannels as string[] | undefined;
-            const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
-            const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
+            const freshErrMonitor = await ctx.runQuery(internal.monitors.getInternal, { id: monitor._id });
+            if (freshErrMonitor && !freshErrMonitor.muted) {
+              const monitorChannels = (freshErrMonitor as any).notificationChannels as string[] | undefined;
+              const shouldSend = (channel: string) => !monitorChannels || monitorChannels.includes(channel);
+              const hasAnyChannel = !monitorChannels || monitorChannels.length > 0;
 
-            // In-app notification (unless all channels explicitly disabled)
-            if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
-              userId: monitor.userId,
-              monitorId: monitor._id,
-              channel: "in_app",
-              title: `${monitor.name} — Error`,
-              message: msg,
-            }).catch(() => {});
-
-            // Email
-            if (shouldSend("email") && monitor.userEmail) {
-              await ctx.runAction(internal.emails.sendErrorAlert, {
-                to: monitor.userEmail,
-                monitorName: monitor.name,
-                monitorId: monitor._id,
-                url: monitor.url,
-                error: msg,
+              // In-app notification (unless all channels explicitly disabled)
+              if (hasAnyChannel) await ctx.runMutation(internal.userNotifications.create, {
+                userId: freshErrMonitor.userId,
+                monitorId: freshErrMonitor._id,
+                channel: "in_app",
+                title: `${freshErrMonitor.name} — Error`,
+                message: msg,
               }).catch(() => {});
-            }
 
-            // Telegram
-            if (shouldSend("telegram")) {
-              const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
-                userId: monitor.userId,
-                channel: "telegram",
-              });
-              if (telegramSetting?.enabled && telegramSetting.target) {
-                await ctx.runAction(internal.telegram.sendErrorAlert, {
-                  chatId: telegramSetting.target,
-                  monitorName: monitor.name,
-                  monitorId: monitor._id,
-                  url: monitor.url,
+              // Email
+              if (shouldSend("email") && freshErrMonitor.userEmail) {
+                await ctx.runAction(internal.emails.sendErrorAlert, {
+                  to: freshErrMonitor.userEmail,
+                  monitorName: freshErrMonitor.name,
+                  monitorId: freshErrMonitor._id,
+                  url: freshErrMonitor.url,
                   error: msg,
                 }).catch(() => {});
               }
-            }
 
-            // Discord
-            if (shouldSend("discord")) {
-              const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
-                userId: monitor.userId,
-                channel: "discord",
-              });
-              if (discordSetting?.enabled && discordSetting.target) {
-                await ctx.runAction(internal.discord.sendErrorAlert, {
-                  webhookUrl: discordSetting.target,
-                  monitorName: monitor.name,
-                  monitorId: monitor._id,
-                  url: monitor.url,
-                  error: msg,
-                }).catch(() => {});
+              // Telegram
+              if (shouldSend("telegram")) {
+                const telegramSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                  userId: freshErrMonitor.userId,
+                  channel: "telegram",
+                });
+                if (telegramSetting?.enabled && telegramSetting.target) {
+                  await ctx.runAction(internal.telegram.sendErrorAlert, {
+                    chatId: telegramSetting.target,
+                    monitorName: freshErrMonitor.name,
+                    monitorId: freshErrMonitor._id,
+                    url: freshErrMonitor.url,
+                    error: msg,
+                  }).catch(() => {});
+                }
+              }
+
+              // Discord
+              if (shouldSend("discord")) {
+                const discordSetting = await ctx.runQuery(internal.scheduler.getNotificationSetting, {
+                  userId: freshErrMonitor.userId,
+                  channel: "discord",
+                });
+                if (discordSetting?.enabled && discordSetting.target) {
+                  await ctx.runAction(internal.discord.sendErrorAlert, {
+                    webhookUrl: discordSetting.target,
+                    monitorName: freshErrMonitor.name,
+                    monitorId: freshErrMonitor._id,
+                    url: freshErrMonitor.url,
+                    error: msg,
+                  }).catch(() => {});
+                }
               }
             }
           }
@@ -552,5 +720,32 @@ export const getNotificationSetting = internalQuery({
         q.eq("userId", args.userId).eq("channel", args.channel)
       )
       .unique();
+  },
+});
+
+/** Get the latest scrape result for a monitor (for price change notifications) */
+export const getLatestScrapeResult = internalQuery({
+  args: { monitorId: v.id("monitors") },
+  handler: async (ctx, args) => {
+    return ctx.db
+      .query("scrapeResults")
+      .withIndex("by_monitorId_scrapedAt", (q) => q.eq("monitorId", args.monitorId))
+      .order("desc")
+      .first();
+  },
+});
+
+/** Update the lastNotifiedAt timestamp inside priceAlerts (for cooldown tracking) */
+export const updatePriceAlertTimestamp = internalMutation({
+  args: { monitorId: v.id("monitors"), lastNotifiedAt: v.number() },
+  handler: async (ctx, args) => {
+    const monitor = await ctx.db.get(args.monitorId);
+    if (!monitor) return;
+    // as any: priceAlerts type not in generated types until npx convex dev runs
+    const existing = (monitor as any).priceAlerts;
+    if (!existing) return;
+    await ctx.db.patch(args.monitorId, {
+      priceAlerts: { ...existing, lastNotifiedAt: args.lastNotifiedAt },
+    } as any);
   },
 });

@@ -40,6 +40,7 @@ export const sendMatchAlert = internalAction({
     matchCount: v.number(),
     matches: v.array(v.any()),
     totalItems: v.number(),
+    tracksPrices: v.optional(v.boolean()),
   },
   handler: async (_ctx, args) => {
     const apiKey = process.env.RESEND_API_KEY;
@@ -87,6 +88,14 @@ export const sendMatchAlert = internalAction({
 
     const moreText = !isQuickCheck && args.matchCount > 5 ? `<p style="color:#666;font-size:14px">+${args.matchCount - 5} more matches</p>` : "";
 
+    const priceDiscovery = args.tracksPrices
+      ? `<div style="margin-top:24px;padding-top:24px;border-top:1px solid #eee">
+          <p style="margin:0 0 8px;color:#333;font-size:14px">📊 This page has prices — want price drop alerts?</p>
+          <p style="margin:0 0 12px;color:#666;font-size:13px">Set up price tracking to get notified when prices change.</p>
+          <a href="${APP_URL}/dashboard/monitors/${args.monitorId}?section=price-alerts" style="color:#4f46e5;font-size:13px;font-weight:500;text-decoration:none">Set up price alerts →</a>
+        </div>`
+      : "";
+
     const html = `
 <!DOCTYPE html>
 <html>
@@ -108,6 +117,7 @@ export const sendMatchAlert = internalAction({
           <a href="${safeHref(viewOnSiteUrl)}" style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-right:8px">View on site</a>
           <a href="${APP_URL}/dashboard/monitors/${args.monitorId}" style="display:inline-block;background:#f4f4f5;color:#333;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px">View in PageAlert</a>
         </div>
+        ${priceDiscovery}
       </div>
       <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #eee">
         <p style="margin:0;color:#999;font-size:12px">
@@ -121,9 +131,12 @@ export const sendMatchAlert = internalAction({
 </html>`;
 
     const plainItemsText = args.totalItems > 0 ? ` out of ${args.totalItems} items` : "";
+    const priceDiscoveryText = args.tracksPrices
+      ? "\n\nThis page has prices — set up price tracking to get notified when prices change.\nSet up price alerts: " + `${APP_URL}/dashboard/monitors/${args.monitorId}?section=price-alerts`
+      : "";
     const text = isQuickCheck
-      ? `Match Found — ${args.monitorName}\n\nYour monitor detected matching keywords on ${safeHostname(args.url)}.\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}`
-      : `Match Found — ${args.monitorName}\n\nYour monitor found ${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}${plainItemsText} on ${safeHostname(args.url)}.\n\n${args.matches.slice(0, 5).map((m: Record<string, unknown>) => `• ${String(m.title ?? m.name ?? "Item")}${m.price != null ? ` — $${Number(m.price)}` : ""}`).join("\n")}\n${args.matchCount > 5 ? `+${args.matchCount - 5} more` : ""}\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}`;
+      ? `Match Found — ${args.monitorName}\n\nYour monitor detected matching keywords on ${safeHostname(args.url)}.\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}` + priceDiscoveryText
+      : `Match Found — ${args.monitorName}\n\nYour monitor found ${args.matchCount} match${args.matchCount !== 1 ? "es" : ""}${plainItemsText} on ${safeHostname(args.url)}.\n\n${args.matches.slice(0, 5).map((m: Record<string, unknown>) => `• ${String(m.title ?? m.name ?? "Item")}${m.price != null ? ` — $${Number(m.price)}` : ""}`).join("\n")}\n${args.matchCount > 5 ? `+${args.matchCount - 5} more` : ""}\n\nView on site: ${viewOnSiteUrl}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}` + priceDiscoveryText;
 
     try {
       const res = await fetch("https://api.resend.com/emails", {
@@ -304,6 +317,166 @@ export const sendAnonymousScanComplete = internalAction({
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error("[emails] Anonymous scan email failed:", res.status, body);
+    }
+  },
+});
+
+/** Send a price alert email (single drop, multiple changes, or threshold hit) */
+export const sendPriceAlert = internalAction({
+  args: {
+    to: v.string(),
+    monitorName: v.string(),
+    monitorId: v.string(),
+    url: v.string(),
+    variant: v.union(v.literal("threshold"), v.literal("single_drop"), v.literal("multiple")),
+    priceChanges: v.array(v.object({
+      title: v.string(),
+      oldPrice: v.number(),
+      newPrice: v.number(),
+      change: v.number(),
+      changePercent: v.number(),
+    })),
+    belowThreshold: v.optional(v.number()),
+    aboveThreshold: v.optional(v.number()),
+    belowHits: v.array(v.object({
+      title: v.string(),
+      oldPrice: v.number(),
+      newPrice: v.number(),
+      change: v.number(),
+      changePercent: v.number(),
+    })),
+    aboveHits: v.array(v.object({
+      title: v.string(),
+      oldPrice: v.number(),
+      newPrice: v.number(),
+      change: v.number(),
+      changePercent: v.number(),
+    })),
+    trackedItemCount: v.number(),
+  },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("[email] RESEND_API_KEY not configured, skipping");
+      return;
+    }
+
+    const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const pct = (n: number) => `${Math.abs(n).toFixed(1)}%`;
+    const manageUrl = `${APP_URL}/dashboard/monitors/${args.monitorId}?section=price-alerts`;
+
+    // Subject line
+    const firstBelow = args.belowHits[0];
+    const firstAbove = args.aboveHits[0];
+    const firstHit = firstBelow ?? firstAbove;
+    const firstChange = args.priceChanges[0];
+    let subject: string;
+    if (args.variant === "threshold" && firstHit) {
+      const threshold = firstBelow ? args.belowThreshold : args.aboveThreshold;
+      const direction = firstBelow ? "dropped below" : "rose above";
+      subject = threshold != null
+        ? `🎯 ${firstHit.title} ${direction} your ${fmt(threshold)} target!`
+        : `🎯 ${firstHit.title} — price target hit!`;
+    } else if (args.variant === "single_drop" && firstChange) {
+      subject = `${firstChange.title} dropped to ${fmt(firstChange.newPrice)} (-${pct(firstChange.changePercent)})`;
+    } else {
+      subject = `Price alert: ${args.priceChanges.length} price changes on ${args.monitorName}`;
+    }
+
+    // Header config
+    const isMultiple = args.variant === "multiple";
+    const headerColor = isMultiple ? "#3b82f6" : "#10b981";
+    const headerTitle = args.variant === "threshold" ? "Price Target Hit!" : isMultiple ? "Price Changes Detected" : "Price Drop";
+
+    // Build price change row HTML
+    const row = (item: { title: string; oldPrice: number; newPrice: number; changePercent: number }) => {
+      const arrow = item.newPrice < item.oldPrice ? "▼" : item.newPrice > item.oldPrice ? "▲" : "";
+      const arrowHtml = arrow ? `  ${arrow} ${pct(item.changePercent)}` : "";
+      return `<div style="border-bottom:1px solid #eee;padding:8px 0"><p style="margin:0;font-weight:600;color:#333">${esc(item.title)}</p><p style="margin:4px 0 0;color:#666;font-size:14px">${fmt(item.oldPrice)} → ${fmt(item.newPrice)}${arrowHtml}</p></div>`;
+    };
+
+    // Body content
+    let bodyHtml = "";
+    if (args.variant === "threshold") {
+      if (args.belowHits.length > 0) {
+        bodyHtml += `<p style="margin:0 0 8px;color:#10b981;font-weight:600">⚡ Below your ${fmt(args.belowThreshold ?? 0)} threshold</p>`;
+        bodyHtml += args.belowHits.map(row).join("");
+      }
+      if (args.aboveHits.length > 0) {
+        bodyHtml += `<p style="margin:16px 0 8px;color:#f59e0b;font-weight:600">⚡ Above your ${fmt(args.aboveThreshold ?? 0)} threshold</p>`;
+        bodyHtml += args.aboveHits.map(row).join("");
+      }
+    } else if (isMultiple) {
+      const drops = args.priceChanges.filter((c) => c.change < 0);
+      const increases = args.priceChanges.filter((c) => c.change > 0);
+      if (drops.length > 0) {
+        bodyHtml += `<p style="margin:0 0 8px;color:#10b981;font-weight:600">Price Drops</p>`;
+        bodyHtml += drops.map(row).join("");
+      }
+      if (increases.length > 0) {
+        bodyHtml += `<p style="margin:${drops.length > 0 ? "16" : "0"}px 0 8px;color:#f59e0b;font-weight:600">Price Increases</p>`;
+        bodyHtml += increases.map(row).join("");
+      }
+    } else {
+      bodyHtml += args.priceChanges.map(row).join("");
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="max-width:560px;margin:0 auto;padding:40px 20px">
+    <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+      <div style="background:${headerColor};padding:24px 32px">
+        <h1 style="margin:0;color:#fff;font-size:20px;font-weight:600">${headerTitle}</h1>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:14px">${esc(args.monitorName)}</p>
+      </div>
+      <div style="padding:32px">
+        ${bodyHtml}
+        <div style="margin-top:24px">
+          <a href="${safeHref(args.url)}" style="display:inline-block;background:${headerColor};color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px;margin-right:8px">View on site</a>
+          <a href="${APP_URL}/dashboard/monitors/${args.monitorId}" style="display:inline-block;background:#f4f4f5;color:#333;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:500;font-size:14px">View in PageAlert</a>
+        </div>
+      </div>
+      <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #eee">
+        <p style="margin:0;color:#999;font-size:12px">
+          Tracking ${args.trackedItemCount} items · <a href="${safeHref(manageUrl)}" style="color:#999">Manage price alerts</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const rowText = (item: { title: string; oldPrice: number; newPrice: number; changePercent: number }) =>
+      `• ${item.title}: ${fmt(item.oldPrice)} → ${fmt(item.newPrice)} (${item.newPrice < item.oldPrice ? "-" : "+"}${pct(item.changePercent)})`;
+    let textBody = "";
+    if (args.variant === "threshold") {
+      if (args.belowHits.length > 0) textBody += `Below ${fmt(args.belowThreshold ?? 0)} threshold:\n${args.belowHits.map(rowText).join("\n")}\n\n`;
+      if (args.aboveHits.length > 0) textBody += `Above ${fmt(args.aboveThreshold ?? 0)} threshold:\n${args.aboveHits.map(rowText).join("\n")}\n\n`;
+    } else {
+      textBody += args.priceChanges.map(rowText).join("\n") + "\n\n";
+    }
+    const text = `${headerTitle} — ${args.monitorName}\n\n${textBody}View on site: ${args.url}\nView in PageAlert: ${APP_URL}/dashboard/monitors/${args.monitorId}\nManage price alerts: ${manageUrl}`;
+
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ from: FROM_EMAIL, to: [args.to], subject, html, text }),
+        signal: AbortSignal.timeout(RESEND_TIMEOUT),
+      });
+      if (!res.ok) {
+        console.error("[email] Resend API error:", res.status, "monitor:", args.monitorId);
+        return;
+      }
+      console.log(`[email] Price alert sent, monitor: ${args.monitorId}, variant: ${args.variant}`);
+    } catch (e) {
+      console.error("[email] Failed to send price alert, monitor:", args.monitorId, e instanceof Error ? e.message : "");
     }
   },
 });

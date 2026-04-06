@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AiInsightsCard } from "@/components/prowl/ai-insights";
+import { PriceAlertCard } from "@/components/prowl/price-alert-card";
 import { IntervalSelector } from "@/components/prowl/interval-selector";
 import { ChannelSelector } from "@/components/prowl/channel-selector";
 import {
@@ -24,9 +25,14 @@ import {
   Loader2,
   AlertTriangle,
   RotateCw,
+  Bell,
+  BellOff,
+  TrendingDown,
+  BarChart3,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { ExtractedItem, ExtractionSchema } from "@prowl/shared";
+import { getItemKey } from "@prowl/shared";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { timeAgo } from "@/lib/time";
@@ -49,14 +55,16 @@ interface OverviewTabProps {
     notificationChannels?: string[];
   };
   matches: ExtractedItem[];
+  allItems: ExtractedItem[];
   totalItems: number;
   onRescan?: (id: Id<"monitors">) => Promise<void>;
+  onToggleMute?: () => Promise<unknown>;
 }
 
 const RETRY_LIMIT = 3;
 const RETRY_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan }: OverviewTabProps) {
+export function OverviewTab({ monitorId, monitor, matches, allItems, totalItems, onRescan, onToggleMute }: OverviewTabProps) {
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -105,6 +113,34 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
   const updateMutation = useMutation(api.monitors.update);
   const schema = monitor.schema as ExtractionSchema | undefined;
 
+  const insights = schema?.insights;
+  const tracksPrices = insights?.tracksPrices
+    ?? allItems.some((item) => typeof item.price === "number");
+  const suggestedPriceTrackItems = insights?.suggestedPriceTrackItems ?? [];
+  const priceAlerts = (monitor as any).priceAlerts;
+
+  const currency = (() => {
+    const currencies = allItems
+      .map((i) => typeof i.currency === "string" ? i.currency : null)
+      .filter((c): c is string => c !== null);
+    if (currencies.length === 0) return "USD";
+    const counts = new Map<string, number>();
+    for (const c of currencies) counts.set(c, (counts.get(c) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+  })();
+
+  const lowestTrackedPrice = (() => {
+    if (!tracksPrices || !priceAlerts?.trackedItems?.length) return null;
+    const trackedSet = new Set(priceAlerts.trackedItems);
+    const trackedWithPrices = allItems.filter((item) => {
+      const key = getItemKey(item);
+      return trackedSet.has(key) && typeof item.price === "number";
+    });
+    if (trackedWithPrices.length === 0) return null;
+    const lowest = Math.min(...trackedWithPrices.map((i) => i.price as number));
+    return formatPrice(lowest, currency);
+  })();
+
   function startEditing() {
     setEditName(monitor.name);
     setEditPrompt(monitor.prompt);
@@ -144,6 +180,31 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
 
   return (
     <div className="space-y-8">
+      {(monitor as any).muted && (
+        <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <BellOff className="h-5 w-5 text-amber-400 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-400">Notifications muted</p>
+                  <p className="text-xs text-muted-foreground">This monitor is still scanning but won't send any alerts.</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 shrink-0 border-amber-500/20 hover:bg-amber-500/10"
+                onClick={() => onToggleMute?.()}
+              >
+                <Bell className="h-3.5 w-3.5" />
+                Unmute
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Error banner */}
       {monitor.status === "error" && monitor.lastError && (
         <Card className="border-red-500/30 bg-red-500/5 shadow-sm">
@@ -231,7 +292,7 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
       </Card>
 
       {/* Stats row */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className={`grid gap-4 ${tracksPrices ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-6" : "grid-cols-2 md:grid-cols-4"}`}>
         <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
           <CardContent className="p-4 sm:p-5">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">URL</p>
@@ -266,7 +327,53 @@ export function OverviewTab({ monitorId, monitor, matches, totalItems, onRescan 
             <p className="text-sm font-semibold">{monitor.checkCount ?? 0} total · {timeAgo(monitor.lastCheckedAt)}</p>
           </CardContent>
         </Card>
+        {tracksPrices && (
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardContent className="p-4 sm:p-5">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Lowest Price</p>
+              <p className="text-sm font-semibold flex items-center gap-1.5">
+                <TrendingDown className="h-3.5 w-3.5 text-emerald-400" />
+                {lowestTrackedPrice ?? "—"}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        {tracksPrices && (
+          <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">
+            <CardContent className="p-4 sm:p-5">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1.5">Tracking</p>
+              <p className="text-sm font-semibold">
+                {priceAlerts?.trackedItems?.length ?? 0} items
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      {tracksPrices && !priceAlerts && (
+        <Card className="border-primary/20 bg-primary/5 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="h-5 w-5 text-primary shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold">This page has prices — track price changes?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Get notified when prices drop or cross your threshold. AI has suggested items to track.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {tracksPrices && (
+        <PriceAlertCard
+          monitorId={monitorId}
+          priceAlerts={priceAlerts}
+          allItems={allItems}
+          suggestedPriceTrackItems={suggestedPriceTrackItems}
+          currency={currency}
+          muted={!!(monitor as any).muted}
+        />
+      )}
 
       {/* Top matches */}
       {matches.length > 0 && (

@@ -39,6 +39,17 @@ export default defineSchema({
     isAnonymous: v.optional(v.boolean()),
     anonymousEmail: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
+    muted: v.optional(v.boolean()),
+    priceAlerts: v.optional(v.object({
+      onPriceDrop: v.boolean(),
+      onPriceIncrease: v.boolean(),
+      belowThreshold: v.optional(v.number()),
+      aboveThreshold: v.optional(v.number()),
+      trackedItems: v.array(v.string()),
+      minChangePercent: v.optional(v.number()),
+      lastNotifiedAt: v.optional(v.number()),
+      cooldownMs: v.optional(v.number()),
+    })),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
