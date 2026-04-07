@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 const tierValidator = v.union(v.literal("free"), v.literal("pro"), v.literal("max"));
 
@@ -86,5 +86,57 @@ export const markCancelled = internalMutation({
     };
     if (args.polarSubscriptionId != null) patch.polarSubscriptionId = args.polarSubscriptionId;
     await ctx.db.patch(existing._id, patch);
+  },
+});
+
+const DAILY_SCAN_LIMITS: Record<"free" | "pro" | "max", number> = { free: 10, pro: 100, max: 1000 };
+
+/** Check whether the current user can perform a manual scan */
+export const canScan = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { canScan: false, remaining: 0, limit: 0 };
+    const userId = identity.subject;
+
+    const record = await ctx.db
+      .query("userTiers")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    const tier = (record?.tier ?? "free") as "free" | "pro" | "max";
+    const limit = DAILY_SCAN_LIMITS[tier];
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD UTC
+    const used = record?.dailyScansDate === today ? (record?.dailyScans ?? 0) : 0;
+
+    return { canScan: used < limit, remaining: Math.max(0, limit - used), limit };
+  },
+});
+
+/** Increment the daily scan counter after a successful manual scan */
+export const incrementScanCount = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = identity.subject;
+
+    const record = await ctx.db
+      .query("userTiers")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .unique();
+
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (record) {
+      const isToday = record.dailyScansDate === today;
+      await ctx.db.patch(record._id, {
+        dailyScans: isToday ? (record.dailyScans ?? 0) + 1 : 1,
+        dailyScansDate: today,
+      } as any); // as any until types regenerated
+    }
+    // If no tier record exists, user is free tier — they can still scan, we just don't track.
+    // The tier record is created when they first sign up or by webhooks.
   },
 });
