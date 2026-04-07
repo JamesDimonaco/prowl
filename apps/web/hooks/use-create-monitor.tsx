@@ -8,12 +8,12 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { CreateMonitorSheet } from "@/components/prowl/create-monitor-sheet";
 import { toast } from "sonner";
-import { trackMonitorCreated, trackScanStarted, trackScanCompleted, trackScanFailed, trackEvent, captureException } from "@/lib/posthog";
+import { trackMonitorCreated, trackScanStarted, trackScanCompleted, trackScanFailed } from "@/lib/posthog";
 
 interface CloneDefaults {
   name: string;
@@ -57,8 +57,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
   const saveScanError = useMutation(api.monitors.saveScanError);
   const removeMutation = useMutation(api.monitors.remove);
   const createLog = useMutation(api.logs.create);
-  const scanBudget = useQuery(api.tiers.canScan);
-  const consumeScan = useMutation(api.tiers.consumeScan);
+  // scanBudget not used here — initial monitor creation doesn't consume rescan quota
 
   const open = useCallback(() => {
     if (!isScanning) {
@@ -90,23 +89,6 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
       notificationChannels?: ("email" | "telegram" | "discord")[];
     }) => {
       if (isSubmittingRef.current) return;
-
-      // Atomically consume a scan from the daily budget
-      try {
-        const result = await consumeScan();
-        if (!result.success) {
-          trackEvent("scan_budget_exceeded", { limit: result.limit });
-          toast.error("Daily scan limit reached", {
-            description: `${result.limit} scans/day on your plan. Resets at midnight UTC.`,
-          });
-          return;
-        }
-      } catch (e) {
-        captureException(e, { context: "consumeScan_create" });
-        toast.error("Failed to check scan budget");
-        return;
-      }
-
       isSubmittingRef.current = true;
 
       let monitorId: Id<"monitors">;
@@ -218,7 +200,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         }).catch(() => {});
 
         trackScanCompleted({ url: data.url, itemCount: totalItems, matchCount, durationMs, confidence: insights?.confidence });
-        // Scan budget already consumed atomically above
+        // Initial scan — doesn't consume rescan budget
 
         toast.success("Scan complete", {
           description: `${totalItems} items found, ${matchCount} match${matchCount !== 1 ? "es" : ""}`,
@@ -249,7 +231,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
         isSubmittingRef.current = false;
       }
     },
-    [createMutation, saveScanResult, saveScanError, createLog, scanBudget, consumeScan]
+    [createMutation, saveScanResult, saveScanError, createLog]
   );
 
   const cancelScan = useCallback(async () => {
