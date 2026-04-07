@@ -45,7 +45,7 @@ export function ReviewPrompt() {
         quote,
       });
       toast.success("Thank you for your review!");
-      trackEvent("review_submitted");
+      trackEvent("review_submitted", { quote_length: quote.length, has_role: !!role });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to submit review";
       toast.error(msg);
@@ -55,6 +55,7 @@ export function ReviewPrompt() {
   }
 
   async function handleDismissPermanent() {
+    trackEvent("review_prompt_dismissed_permanent");
     try {
       await dismissReview();
     } catch {
@@ -169,7 +170,7 @@ export function ReviewPrompt() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setDismissed(true)}
+                onClick={() => { trackEvent("review_prompt_dismissed"); setDismissed(true); }}
               >
                 Maybe later
               </Button>
