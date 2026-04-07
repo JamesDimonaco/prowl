@@ -31,6 +31,20 @@ quickCheckRoutes.post("/", zValidator("json", quickCheckSchema), async (c) => {
     const text = scraped.text;
     const textLower = text.toLowerCase();
 
+    // Check for anti-bot blocking
+    if (scraped.blocked) {
+      return c.json({
+        url,
+        accessible: false,
+        blocked: true,
+        blockReason: scraped.blockReason,
+        matches: [],
+        totalTextLength: text.length,
+        hasNewMatches: false,
+        scrapedAt: scraped.scrapedAt,
+      });
+    }
+
     // Check if the page seems accessible (has meaningful content)
     const isAccessible = text.length > 200;
 
@@ -96,6 +110,30 @@ quickCheckRoutes.post("/", zValidator("json", quickCheckSchema), async (c) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[quick-check] Failed for ${url}:`, message);
-    return c.json({ error: "check_failed", message: "Check failed" }, 500);
+
+    const isTimeout = message.includes("Timeout") || message.includes("timed out");
+    const isNavigation = message.includes("net::ERR_") || message.includes("Navigation failed");
+    const isConcurrency = message.includes("concurrent");
+    const isSSRF = message.includes("not allowed") || message.includes("URL");
+
+    let userMessage: string;
+    let statusCode = 500;
+
+    if (isSSRF) {
+      userMessage = message;
+      statusCode = 400;
+    } else if (isTimeout) {
+      userMessage = "Page took too long to load. The site may be slow or blocking automated access.";
+      statusCode = 504;
+    } else if (isNavigation) {
+      userMessage = "Could not reach the page. The URL may be invalid or the site may be down.";
+    } else if (isConcurrency) {
+      userMessage = "Too many concurrent checks. Will retry automatically.";
+      statusCode = 429;
+    } else {
+      userMessage = `Check failed: ${message.slice(0, 200)}`;
+    }
+
+    return c.json({ error: "check_failed", message: userMessage }, statusCode as 400 | 429 | 500 | 504);
   }
 });

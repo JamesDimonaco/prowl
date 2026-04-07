@@ -579,13 +579,24 @@ async function runQuickCheck(
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Scraper returned ${res.status}: ${body.slice(0, 200)}`);
+    // Try to extract the user-friendly message from the scraper's JSON response
+    let errorMsg = `Scraper error (${res.status})`;
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed.message) errorMsg = parsed.message;
+    } catch {
+      if (body) errorMsg = `${errorMsg}: ${body.slice(0, 200)}`;
+    }
+    throw new Error(errorMsg);
   }
 
   const result = await res.json();
 
   if (!result.accessible) {
-    throw new Error("Page inaccessible");
+    const reason = result.blocked
+      ? `Site is blocking automated access: ${result.blockReason ?? "anti-bot protection detected"}. Try a different URL or check if the site requires login.`
+      : "Page inaccessible — no meaningful content found. The page may be down or require JavaScript that couldn't load.";
+    throw new Error(reason);
   }
 
   const hasMatch = result.hasNewMatches;

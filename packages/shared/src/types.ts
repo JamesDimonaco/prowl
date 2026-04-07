@@ -6,6 +6,9 @@ export interface ScrapeResponse {
   text: string;
   title: string;
   scrapedAt: string;
+  /** Set when the page appears to serve an anti-bot challenge instead of content */
+  blocked?: boolean;
+  blockReason?: string;
 }
 
 export interface AiInsights {
