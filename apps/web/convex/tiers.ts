@@ -114,8 +114,8 @@ export const canScan = query({
   },
 });
 
-/** Increment the daily scan counter after a successful manual scan */
-export const incrementScanCount = mutation({
+/** Atomically check budget and consume a scan. Returns { success, remaining, limit }. */
+export const consumeScan = mutation({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -127,15 +127,24 @@ export const incrementScanCount = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
 
+    const tier = (record?.tier ?? "free") as "free" | "pro" | "max";
+    const limit = DAILY_SCAN_LIMITS[tier];
     const today = new Date().toISOString().slice(0, 10);
 
     if (record) {
       const isToday = record.dailyScansDate === today;
+      const used = isToday ? (record.dailyScans ?? 0) : 0;
+      if (used >= limit) {
+        return { success: false, remaining: 0, limit };
+      }
       await ctx.db.patch(record._id, {
-        dailyScans: isToday ? (record.dailyScans ?? 0) + 1 : 1,
+        dailyScans: used + 1,
         dailyScansDate: today,
       } as any);
+      return { success: true, remaining: Math.max(0, limit - used - 1), limit };
     } else {
+      // No tier record — create one (free tier, first scan)
+      if (1 > limit) return { success: false, remaining: 0, limit }; // shouldn't happen, free limit is 10
       await ctx.db.insert("userTiers", {
         userId,
         tier: "free",
@@ -143,6 +152,7 @@ export const incrementScanCount = mutation({
         dailyScansDate: today,
         updatedAt: Date.now(),
       } as any);
+      return { success: true, remaining: limit - 1, limit };
     }
   },
 });

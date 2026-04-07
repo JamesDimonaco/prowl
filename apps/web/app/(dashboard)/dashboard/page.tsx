@@ -59,7 +59,7 @@ export default function DashboardPage() {
     router.replace("/dashboard", { scroll: false });
   }, [searchParams, monitors, openWithDefaults, router, atLimit]);
   const scanBudget = useQuery(api.tiers.canScan);
-  const incrementScans = useMutation(api.tiers.incrementScanCount);
+  const consumeScan = useMutation(api.tiers.consumeScan);
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
   const createLog = useMutation(api.logs.create);
@@ -73,12 +73,19 @@ export default function DashboardPage() {
   }, [monitors]);
 
   async function handleRescan(monitorId: Id<"monitors">) {
-    // Check daily scan budget
-    if (!scanBudget?.canScan) {
-      toast.error(scanBudget ? "Daily scan limit reached" : "Loading...", {
-        description: scanBudget ? `${scanBudget.limit} scans/day on your plan. Resets at midnight UTC.` : "Please wait a moment.",
-      });
-      if (scanBudget) trackEvent("scan_budget_exceeded", { limit: scanBudget.limit });
+    // Atomically consume a scan from the daily budget
+    try {
+      const result = await consumeScan();
+      if (!result.success) {
+        trackEvent("scan_budget_exceeded", { limit: result.limit });
+        toast.error("Daily scan limit reached", {
+          description: `${result.limit} scans/day on your plan. Resets at midnight UTC.`,
+        });
+        return;
+      }
+    } catch (e) {
+      captureException(e, { context: "consumeScan" });
+      toast.error("Failed to check scan budget");
       return;
     }
 
@@ -132,7 +139,7 @@ export default function DashboardPage() {
       toast.success("Rescan complete", {
         description: `${totalItems} items, ${matchCount} matches`,
       });
-      await incrementScans().catch((e) => captureException(e, { context: "incrementScans" }));
+      // Scan budget already consumed atomically above
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rescan failed";
       const durationMs = Date.now() - startTime;

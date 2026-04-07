@@ -41,7 +41,7 @@ export const submit = mutation({
     const monitors = await ctx.db
       .query("monitors")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .take(20);
+      .collect();
     if (monitors.filter((m) => !m.isAnonymous).length < 2) {
       throw new Error("Create at least 2 monitors before submitting a review");
     }
