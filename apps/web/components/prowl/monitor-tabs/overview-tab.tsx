@@ -52,6 +52,8 @@ interface OverviewTabProps {
     schema?: unknown;
     status: string;
     lastError?: string;
+    retryCount?: number;
+    nextCheckAt?: number;
     notificationChannels?: string[];
   };
   matches: ExtractedItem[];
@@ -200,6 +202,28 @@ export function OverviewTab({ monitorId, monitor, matches, allItems, totalItems,
                 <Bell className="h-3.5 w-3.5" />
                 Unmute
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Retry in progress banner — monitor is active but has failed checks being retried */}
+      {monitor.status === "active" && (monitor.retryCount ?? 0) > 0 && monitor.lastError && (
+        <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <RotateCw className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-400 mb-1">
+                  Retrying ({monitor.retryCount} of 3)
+                </p>
+                <p className="text-sm text-muted-foreground break-words">{monitor.lastError}</p>
+                <p className="text-xs text-muted-foreground/60 mt-2">
+                  {monitor.nextCheckAt
+                    ? `Next attempt ${timeAgo(monitor.nextCheckAt)} — trying different strategies (proxy, mobile browser)`
+                    : "Retrying with different strategies (proxy, mobile browser)"}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
