@@ -19,6 +19,17 @@ extractRoutes.post("/", zValidator("json", extractSchema), async (c) => {
 
   try {
     const scraped = await scrapeUrl(url, { timeout });
+
+    // Don't waste AI credits on anti-bot challenge pages
+    if (scraped.blocked) {
+      const safeUrl = (() => { try { return new URL(url).hostname; } catch { return "[invalid]"; } })();
+      console.warn(`[extract] Blocked by anti-bot for ${safeUrl}: ${scraped.blockReason}`);
+      return c.json({
+        error: "blocked",
+        message: `Site is blocking automated access: ${scraped.blockReason ?? "anti-bot protection detected"}`,
+      }, 403);
+    }
+
     const { schema, matches } = await extractWithAI(scraped.text, prompt, url, name);
 
     return c.json({
