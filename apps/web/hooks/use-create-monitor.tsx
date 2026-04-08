@@ -225,7 +225,15 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
           }).catch(() => {});
         }
 
-        toast.error("Scan failed", { description: msg });
+        const isBlocked = msg.includes("blocking") || msg.includes("anti-bot") || msg.includes("CAPTCHA") || msg.includes("blocked");
+        if (isBlocked) {
+          toast("Site blocked initial scan", {
+            description: "We'll automatically retry with different strategies (proxy, mobile browser). Check back in a few minutes.",
+            duration: 8000,
+          });
+        } else {
+          toast.error("Scan failed", { description: msg });
+        }
       } finally {
         setIsScanning(false);
         isSubmittingRef.current = false;

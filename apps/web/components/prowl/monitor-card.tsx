@@ -99,6 +99,12 @@ export function MonitorCard({ monitor, onTogglePause, onDelete, onRescan, onClon
                   {monitor.matchCount} match{monitor.matchCount !== 1 && "es"}
                 </span>
               )}
+              {monitor.status === "active" && (monitor.retryCount ?? 0) > 0 && (
+                <span className="flex items-center gap-1 text-amber-400">
+                  <RefreshCw className="h-3 w-3" />
+                  Retrying ({monitor.retryCount}/3)
+                </span>
+              )}
               {!((monitor as any).muted) && (monitor as any).notificationChannels?.length === 0 && (
                 <span className="flex items-center gap-1 text-amber-400">
                   <BellOff className="h-3 w-3" />

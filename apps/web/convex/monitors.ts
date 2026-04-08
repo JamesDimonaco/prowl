@@ -232,15 +232,31 @@ export const saveScanError = mutation({
     const monitor = await ctx.db.get(id);
     if (!monitor || monitor.userId !== userId) throw new Error("Monitor not found");
 
-    // For initial scans (status "scanning") always go straight to error
-    // For scheduled checks (status "active") the scheduler handles retries
     if (monitor.status !== "scanning" && monitor.status !== "active") return;
 
-    await ctx.db.patch(id, {
-      status: "error",
-      lastError: error,
-      updatedAt: Date.now(),
-    });
+    const isBlocked = error.includes("blocking") || error.includes("anti-bot") || error.includes("CAPTCHA") || error.includes("blocked");
+    const now = Date.now();
+
+    if (isBlocked && monitor.status === "scanning") {
+      // Blocked on initial scan — schedule retries with proxy instead of instant death.
+      // Start at retryCount 1 so the scheduler uses proxy on the first retry
+      // (retryCount 0 = no proxy = would fail the same way)
+      await ctx.db.patch(id, {
+        status: "active",
+        lastError: error,
+        retryCount: 1,
+        nextCheckAt: now + 30_000, // first retry in 30s
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.patch(id, {
+        status: "error",
+        lastError: error,
+        retryCount: 0,
+        nextCheckAt: undefined,
+        updatedAt: now,
+      });
+    }
   },
 });
 

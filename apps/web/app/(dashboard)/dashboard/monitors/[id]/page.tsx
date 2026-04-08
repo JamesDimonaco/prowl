@@ -70,6 +70,7 @@ export default function MonitorDetailPage({
   const consumeScan = useMutation(api.tiers.consumeScan);
   const saveScanResult = useMutation(api.monitors.saveScanResult);
   const saveScanError = useMutation(api.monitors.saveScanError);
+  const createLog = useMutation(api.logs.create);
   const router = useRouter();
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -104,6 +105,8 @@ export default function MonitorDetailPage({
       return;
     }
 
+    const startTime = Date.now();
+
     try {
       await updateMonitor(id, { status: "scanning" as "active" });
       const res = await fetch("/api/scraper/extract", {
@@ -112,18 +115,33 @@ export default function MonitorDetailPage({
         body: JSON.stringify({ url: monitor.url, prompt: monitor.prompt, name: monitor.name }),
       });
       const json = await res.json();
+      const durationMs = Date.now() - startTime;
       if (!res.ok) throw new Error(json.message || json.error || "Failed");
       if (!json.schema || typeof json.schema !== "object") throw new Error("Invalid response from scraper");
       const matchCount = Array.isArray(json.matches) ? json.matches.length : 0;
       const totalItems = typeof json.totalItems === "number" ? json.totalItems : 0;
       await saveScanResult({ id, schema: json.schema, matchCount });
+      await createLog({
+        monitorId: id, monitorName: monitor.name, url: monitor.url, prompt: monitor.prompt,
+        status: "success" as const, durationMs, itemCount: totalItems, matchCount,
+        aiConfidence: json.schema?.insights?.confidence,
+        strategy: "manual-rescan",
+      }).catch((e) => captureException(e, { context: "createLog_rescan", monitorId: id }));
       toast.success("Rescan complete", { description: `${totalItems} items, ${matchCount} matches` });
-      // Scan budget already consumed atomically above
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Rescan failed";
+      const durationMs = Date.now() - startTime;
       await saveScanError({ id, error: msg }).catch((saveErr) => {
         console.error("[rescan] Failed to persist error state:", saveErr, { monitorId: id, error: msg });
       });
+      const lower = msg.toLowerCase();
+      const isBlocked = lower.includes("blocking") || lower.includes("anti-bot") || lower.includes("captcha") || lower.includes("blocked");
+      await createLog({
+        monitorId: id, monitorName: monitor.name, url: monitor.url, prompt: monitor.prompt,
+        status: "error" as const, durationMs, error: msg,
+        blocked: isBlocked || undefined,
+        strategy: "manual-rescan",
+      }).catch((e) => captureException(e, { context: "createLog_rescan_error", monitorId: id }));
       toast.error("Rescan failed", { description: msg });
     }
   }
