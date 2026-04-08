@@ -187,14 +187,18 @@ export const runScheduledChecks = internalAction({
         const startTime = Date.now();
         try {
           const checkCount = monitor.checkCount ?? 0;
+          const retryCount = monitor.retryCount ?? 0;
           const needsReextract = checkCount > 0 && checkCount % FULL_REEXTRACT_EVERY === 0;
+          // On 3rd retry, skip quick-check and go straight to full extract — the AI
+          // may handle partial/challenge content better than keyword matching
+          const forceFullExtract = retryCount >= 2;
 
           let checkResult: { hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number | null };
 
-          if (needsReextract && monitor.schema) {
-            checkResult = await runFullExtract(ctx, monitor, scraperUrl, scraperKey);
+          if ((needsReextract && monitor.schema) || forceFullExtract) {
+            checkResult = await runFullExtract(ctx, monitor, scraperUrl, scraperKey, retryCount);
           } else {
-            checkResult = await runQuickCheck(ctx, monitor, scraperUrl, scraperKey);
+            checkResult = await runQuickCheck(ctx, monitor, scraperUrl, scraperKey, retryCount);
           }
 
           // Log successful check — use monitor's last known item count when totalItems is unknown
@@ -560,7 +564,8 @@ async function runQuickCheck(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   monitor: any,
   scraperUrl: string,
-  scraperKey: string
+  scraperKey: string,
+  retryAttempt = 0
 ): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number | null }> {
   const matchConditions = monitor.schema?.matchConditions ?? {};
 
@@ -573,6 +578,7 @@ async function runQuickCheck(
     body: JSON.stringify({
       url: monitor.url,
       matchConditions,
+      ...(retryAttempt > 0 ? { retryAttempt } : {}),
     }),
     signal: AbortSignal.timeout(90_000),
   });
@@ -625,7 +631,8 @@ async function runFullExtract(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   monitor: any,
   scraperUrl: string,
-  scraperKey: string
+  scraperKey: string,
+  retryAttempt = 0
 ): Promise<{ hasMatch: boolean; matchCount: number; matches: unknown[]; totalItems: number | null }> {
   // First check page is accessible before burning AI credits
   const quickRes = await fetch(`${scraperUrl}/api/quick-check`, {
@@ -637,6 +644,7 @@ async function runFullExtract(
     body: JSON.stringify({
       url: monitor.url,
       matchConditions: monitor.schema?.matchConditions ?? {},
+      ...(retryAttempt > 0 ? { retryAttempt } : {}),
     }),
     signal: AbortSignal.timeout(90_000),
   });
@@ -668,6 +676,7 @@ async function runFullExtract(
     body: JSON.stringify({
       url: monitor.url,
       prompt: monitor.prompt,
+      ...(retryAttempt > 0 ? { retryAttempt } : {}),
     }),
     signal: AbortSignal.timeout(120_000),
   });

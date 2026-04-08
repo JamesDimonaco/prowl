@@ -10,15 +10,16 @@ const extractSchema = z.object({
   prompt: z.string().min(1).max(2000),
   name: z.string().max(200).optional(),
   timeout: z.number().int().min(1000).max(60000).optional(),
+  retryAttempt: z.number().int().min(0).max(10).optional(),
 });
 
 export const extractRoutes = new Hono();
 
 extractRoutes.post("/", zValidator("json", extractSchema), async (c) => {
-  const { url, prompt, name, timeout } = c.req.valid("json");
+  const { url, prompt, name, timeout, retryAttempt } = c.req.valid("json");
 
   try {
-    const scraped = await scrapeUrl(url, { timeout });
+    const scraped = await scrapeUrl(url, { timeout, retryAttempt });
 
     // Don't waste AI credits on anti-bot challenge pages
     if (scraped.blocked) {
