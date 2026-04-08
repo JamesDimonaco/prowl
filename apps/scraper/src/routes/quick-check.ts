@@ -114,12 +114,13 @@ quickCheckRoutes.post("/", zValidator("json", quickCheckSchema), async (c) => {
     const isTimeout = message.includes("Timeout") || message.includes("timed out");
     const isNavigation = message.includes("net::ERR_") || message.includes("Navigation failed");
     const isConcurrency = message.includes("concurrent");
-    const isSSRF = message.includes("not allowed") || message.includes("URL");
+    const isValidationError = message.includes("not allowed") || message.includes("URL")
+      || message.toLowerCase().includes("could not resolve") || message.includes("hostname");
 
     let userMessage: string;
     let statusCode = 500;
 
-    if (isSSRF) {
+    if (isValidationError) {
       userMessage = message;
       statusCode = 400;
     } else if (isTimeout) {

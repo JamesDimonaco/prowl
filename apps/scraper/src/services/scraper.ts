@@ -197,34 +197,54 @@ async function getTextWithLinks(page: Page): Promise<string> {
   });
 }
 
-/** Check if a page is serving an anti-bot challenge instead of real content */
+/**
+ * Check if a page is serving an anti-bot challenge instead of real content.
+ * High-confidence markers trigger immediately. Ambiguous markers only trigger
+ * when the page has very little content (< 500 chars), since real pages can
+ * contain phrases like "security check" or "access denied" in their normal content.
+ */
 export async function detectAntiBot(page: Page): Promise<{ blocked: boolean; reason?: string }> {
   try {
     const result = await page.evaluate(() => {
       const html = document.documentElement.innerHTML.toLowerCase();
-      const title = document.title.toLowerCase();
       const text = (document.body?.innerText ?? "").toLowerCase();
+      const textLen = text.length;
 
-      const markers: [string, string][] = [
+      // Always indicate blocking regardless of page size
+      const highConfidence: [string, string][] = [
         ["captcha", "CAPTCHA challenge"],
         ["verify you are human", "Human verification"],
         ["are you a robot", "Bot detection"],
-        ["access denied", "Access denied"],
-        ["just a moment", "Cloudflare challenge"],
-        ["checking your browser", "Browser verification"],
-        ["pardon our interruption", "Anti-bot interruption"],
-        ["unusual traffic", "Unusual traffic detection"],
-        ["security check", "Security check"],
-        ["bot detection", "Bot detection"],
         ["please enable javascript", "JavaScript required"],
+        ["checking your browser", "Browser verification"],
         ["enable cookies", "Cookies required"],
       ];
 
-      for (const [marker, reason] of markers) {
-        if (html.includes(marker) || title.includes(marker) || text.includes(marker)) {
+      for (const [marker, reason] of highConfidence) {
+        if (html.includes(marker) || text.includes(marker)) {
           return { blocked: true, reason };
         }
       }
+
+      // Only flag these on short pages (< 500 chars) — real product pages
+      // can legitimately contain "access denied" or "security check" in content
+      if (textLen < 500) {
+        const ambiguous: [string, string][] = [
+          ["access denied", "Access denied"],
+          ["just a moment", "Cloudflare challenge"],
+          ["pardon our interruption", "Anti-bot interruption"],
+          ["unusual traffic", "Unusual traffic detection"],
+          ["security check", "Security check"],
+          ["bot detection", "Bot detection"],
+        ];
+
+        for (const [marker, reason] of ambiguous) {
+          if (html.includes(marker) || text.includes(marker)) {
+            return { blocked: true, reason };
+          }
+        }
+      }
+
       return { blocked: false };
     });
     return result;
