@@ -212,16 +212,16 @@ export function OverviewTab({ monitorId, monitor, matches, allItems, totalItems,
         <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start gap-3">
-              <RotateCw className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <RotateCw className="h-5 w-5 text-amber-400 shrink-0 mt-0.5 animate-spin" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-amber-400 mb-1">
-                  Retrying ({monitor.retryCount} of 3)
+                  Retrying automatically ({monitor.retryCount} of 3)
                 </p>
                 <p className="text-sm text-muted-foreground break-words">{monitor.lastError}</p>
                 <p className="text-xs text-muted-foreground/60 mt-2">
-                  {monitor.nextCheckAt
-                    ? `Next attempt ${timeAgo(monitor.nextCheckAt)} — trying different strategies (proxy, mobile browser)`
-                    : "Retrying with different strategies (proxy, mobile browser)"}
+                  Trying different strategies — proxy, mobile browser.
+                  {monitor.retryCount === 1 && " Next: retry with residential proxy."}
+                  {monitor.retryCount === 2 && " Next: retry with mobile browser + skip anti-bot checks."}
                 </p>
               </div>
             </div>
@@ -230,16 +230,22 @@ export function OverviewTab({ monitorId, monitor, matches, allItems, totalItems,
       )}
 
       {/* Error banner */}
-      {monitor.status === "error" && monitor.lastError && (
+      {monitor.status === "error" && monitor.lastError && (() => {
+        const isBlocked = monitor.lastError.includes("blocking") || monitor.lastError.includes("CAPTCHA") || monitor.lastError.includes("anti-bot");
+        return (
         <Card className="border-red-500/30 bg-red-500/5 shadow-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-red-400 mb-1">Monitor failed</p>
+                <p className="text-sm font-semibold text-red-400 mb-1">
+                  {isBlocked ? "Site is blocking access" : "Monitor failed"}
+                </p>
                 <p className="text-sm text-muted-foreground break-words">{monitor.lastError}</p>
                 <p className="text-xs text-muted-foreground/60 mt-2">
-                  Try pausing other monitors, checking the URL is accessible, or simplifying your prompt.
+                  {isBlocked
+                    ? "All retry strategies (proxy, mobile browser) were exhausted. Try a different URL for this site, or check if the page works without login."
+                    : "Try pausing other monitors, checking the URL is accessible, or simplifying your prompt."}
                 </p>
               </div>
               {onRescan && (
@@ -261,7 +267,8 @@ export function OverviewTab({ monitorId, monitor, matches, allItems, totalItems,
             </div>
           </CardContent>
         </Card>
-      )}
+        );
+      })()}
 
       {/* Prompt + Edit */}
       <Card className="border-border/30 bg-card/50 shadow-sm shadow-black/5">

@@ -238,12 +238,13 @@ export const saveScanError = mutation({
     const now = Date.now();
 
     if (isBlocked && monitor.status === "scanning") {
-      // Blocked on initial scan — schedule retries instead of instant death.
-      // The scheduler will retry with proxy + mobile UA.
+      // Blocked on initial scan — schedule retries with proxy instead of instant death.
+      // Start at retryCount 1 so the scheduler uses proxy on the first retry
+      // (retryCount 0 = no proxy = would fail the same way)
       await ctx.db.patch(id, {
         status: "active",
         lastError: error,
-        retryCount: 0,
+        retryCount: 1,
         nextCheckAt: now + 30_000, // first retry in 30s
         updatedAt: now,
       });
