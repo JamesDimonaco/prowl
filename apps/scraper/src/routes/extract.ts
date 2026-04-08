@@ -10,18 +10,21 @@ const extractSchema = z.object({
   prompt: z.string().min(1).max(2000),
   name: z.string().max(200).optional(),
   timeout: z.number().int().min(1000).max(60000).optional(),
+  retryAttempt: z.number().int().min(0).max(10).optional(),
+  skipBlockCheck: z.boolean().optional(),
 });
 
 export const extractRoutes = new Hono();
 
 extractRoutes.post("/", zValidator("json", extractSchema), async (c) => {
-  const { url, prompt, name, timeout } = c.req.valid("json");
+  const { url, prompt, name, timeout, retryAttempt, skipBlockCheck } = c.req.valid("json");
 
   try {
-    const scraped = await scrapeUrl(url, { timeout });
+    const scraped = await scrapeUrl(url, { timeout, retryAttempt });
 
-    // Don't waste AI credits on anti-bot challenge pages
-    if (scraped.blocked) {
+    // Don't waste AI credits on anti-bot challenge pages — unless caller
+    // explicitly skips (e.g., forced retry where we want the AI to try anyway)
+    if (scraped.blocked && !skipBlockCheck) {
       const safeUrl = (() => { try { return new URL(url).hostname; } catch { return "[invalid]"; } })();
       console.warn(`[extract] Blocked by anti-bot for ${safeUrl}: ${scraped.blockReason}`);
       return c.json({
@@ -41,7 +44,8 @@ extractRoutes.post("/", zValidator("json", extractSchema), async (c) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`[extract] Failed for ${url}:`, message);
+    const safeUrl = (() => { try { return new URL(url).hostname; } catch { return "[invalid]"; } })();
+    console.error(`[extract] Failed for ${safeUrl}:`, message);
 
     // Categorise the error for the client without leaking internals
     let clientMessage = "Extraction failed";

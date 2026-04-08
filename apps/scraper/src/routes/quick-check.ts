@@ -16,15 +16,16 @@ const quickCheckSchema = z.object({
     priceMax: z.number().min(0).max(1_000_000_000).optional(),
   }),
   timeout: z.number().int().min(1000).max(60000).optional(),
+  retryAttempt: z.number().int().min(0).max(10).optional(),
 });
 
 export const quickCheckRoutes = new Hono();
 
 quickCheckRoutes.post("/", zValidator("json", quickCheckSchema), async (c) => {
-  const { url, matchConditions, timeout } = c.req.valid("json");
+  const { url, matchConditions, timeout, retryAttempt } = c.req.valid("json");
 
   try {
-    const scraped = await scrapeUrl(url, { timeout });
+    const scraped = await scrapeUrl(url, { timeout, retryAttempt });
 
     // Simple text-based item extraction: split by common patterns
     // and apply match conditions without calling the AI

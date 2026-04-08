@@ -35,13 +35,14 @@ async function getBrowser(): Promise<Browser> {
 
 export async function scrapeUrl(
   url: string,
-  options?: { timeout?: number; waitFor?: string }
+  options?: { timeout?: number; waitFor?: string; retryAttempt?: number }
 ): Promise<ScrapeResponse> {
   // SSRF protection: validate URL before making any request
   await validateUrlForScraping(url);
 
   // Enforce timeout cap
   const timeout = Math.min(options?.timeout ?? 30000, MAX_TIMEOUT);
+  const retry = options?.retryAttempt ?? 0;
 
   // Resource exhaustion protection: limit concurrent contexts
   if (activeContexts >= MAX_CONCURRENT_CONTEXTS) {
@@ -51,9 +52,17 @@ export async function scrapeUrl(
 
   try {
     const b = await getBrowser();
+
+    // Vary scraping strategy on retries to bypass anti-bot
+    const isMobileRetry = retry >= 2;
+    const ua = isMobileRetry ? getMobileUserAgent() : getRandomUserAgent();
+    const viewport = isMobileRetry
+      ? { width: 390, height: 844 }  // iPhone viewport
+      : { width: 1920, height: 1080 };
+
     const context = await b.newContext({
-      userAgent: getRandomUserAgent(),
-      viewport: { width: 1920, height: 1080 },
+      userAgent: ua,
+      viewport,
     });
 
     const page = await context.newPage();
@@ -95,8 +104,8 @@ export async function scrapeUrl(
         await page.waitForSelector(safeSelector, { timeout: 10000 }).catch(() => {});
       }
 
-      // Let JS frameworks render
-      await page.waitForTimeout(3000);
+      // Let JS frameworks render — wait longer on retries to give anti-bot challenges time to resolve
+      await page.waitForTimeout(retry >= 1 ? 5000 : 3000);
 
       const title = (await page.title()).slice(0, 500);
 
@@ -262,4 +271,14 @@ const userAgents = [
 
 function getRandomUserAgent(): string {
   return userAgents[Math.floor(Math.random() * userAgents.length)];
+}
+
+const mobileUserAgents = [
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1",
+  "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.103 Mobile/15E148 Safari/604.1",
+];
+
+function getMobileUserAgent(): string {
+  return mobileUserAgents[Math.floor(Math.random() * mobileUserAgents.length)];
 }
