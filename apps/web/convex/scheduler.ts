@@ -61,14 +61,14 @@ export const getMonitorsDue = internalQuery({
   handler: async (ctx) => {
     const now = Date.now();
 
-    // Use the nextCheckAt index to efficiently find due monitors
-    const due = await ctx.db
+    // Only read monitors with nextCheckAt <= now (index-bounded, not full scan)
+    const candidates = await ctx.db
       .query("monitors")
-      .withIndex("by_nextCheckAt")
-      .collect();
+      .withIndex("by_nextCheckAt", (q) => q.lte("nextCheckAt", now))
+      .take(MAX_CONCURRENT_CHECKS * 2); // take a small batch, filter in memory
 
-    return due
-      .filter((m) => m.status === "active" && m.nextCheckAt != null && m.nextCheckAt <= now)
+    return candidates
+      .filter((m) => m.status === "active" && m.nextCheckAt != null)
       .slice(0, MAX_CONCURRENT_CHECKS);
   },
 });
