@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { timeAgo } from "@/lib/time";
+import { formatStrategy } from "@/lib/strategy";
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -123,53 +124,83 @@ export default function LogsPage() {
         </p>
       </div>
 
+      {/* Summary bar */}
+      {logs && logs.length > 0 && (() => {
+        const successCount = logs.filter((l) => l.status === "success").length;
+        const errorCount = logs.filter((l) => l.status === "error").length;
+        const timeoutCount = logs.filter((l) => l.status === "timeout").length;
+        const blockedCount = logs.filter((l) => l.blocked).length;
+        return (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span>{logs.length} total</span>
+            <span className="text-emerald-400">{successCount} success</span>
+            <span className="text-red-400">{errorCount} errors</span>
+            {timeoutCount > 0 && <span className="text-amber-400">{timeoutCount} timeouts</span>}
+            {blockedCount > 0 && <span className="text-red-400">{blockedCount} blocked</span>}
+          </div>
+        );
+      })()}
+
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="relative flex-1 sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search URL, monitor, or error..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
-            className="pl-9"
-          />
+          <label htmlFor="log-search" className="text-xs text-muted-foreground mb-1 block">Search</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="log-search"
+              placeholder="Search URL, monitor, or error..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
+              className="pl-9"
+            />
+          </div>
         </div>
-        <Select value={statusFilter} onValueChange={(v) => { if (v) { setStatusFilter(v); setVisibleCount(PAGE_SIZE); } }}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="success">Success</SelectItem>
-            <SelectItem value="error">Error</SelectItem>
-            <SelectItem value="timeout">Timeout</SelectItem>
-          </SelectContent>
-        </Select>
-        {monitors.length > 1 && (
-          <Select value={monitorFilter} onValueChange={(v) => { if (v) { setMonitorFilter(v); setVisibleCount(PAGE_SIZE); } }}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Monitor" />
+        <div>
+          <label htmlFor="log-status" className="text-xs text-muted-foreground mb-1 block">Status</label>
+          <Select value={statusFilter} onValueChange={(v) => { if (v) { setStatusFilter(v); setVisibleCount(PAGE_SIZE); } }}>
+            <SelectTrigger id="log-status" className="w-full sm:w-[140px]">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All monitors</SelectItem>
-              {monitors.map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  <span className="truncate max-w-[140px] block">{label}</span>
-                </SelectItem>
-              ))}
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="success">Success</SelectItem>
+              <SelectItem value="error">Error</SelectItem>
+              <SelectItem value="timeout">Timeout</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        {monitors.length > 1 && (
+          <div>
+            <label htmlFor="log-monitor" className="text-xs text-muted-foreground mb-1 block">Monitor</label>
+            <Select value={monitorFilter} onValueChange={(v) => { if (v) { setMonitorFilter(v); setVisibleCount(PAGE_SIZE); } }}>
+              <SelectTrigger id="log-monitor" className="w-full sm:w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All monitors</SelectItem>
+                {monitors.map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    <span className="truncate max-w-[140px] block">{label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
         {monitors.length > 1 && (
-          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as "none" | "monitor")}>
-            <SelectTrigger className="w-full sm:w-[150px]">
-              <SelectValue placeholder="Group by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No grouping</SelectItem>
-              <SelectItem value="monitor">By monitor</SelectItem>
-            </SelectContent>
-          </Select>
+          <div>
+            <label htmlFor="log-groupby" className="text-xs text-muted-foreground mb-1 block">Group by</label>
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as "none" | "monitor")}>
+              <SelectTrigger id="log-groupby" className="w-full sm:w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No grouping</SelectItem>
+                <SelectItem value="monitor">By monitor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </div>
 
@@ -270,11 +301,16 @@ interface Log {
   matchCount?: number;
   error?: string;
   aiConfidence?: number;
+  strategy?: string;
+  blocked?: boolean;
+  blockReason?: string;
+  retryAttempt?: number;
 }
 
 function LogEntry({ log }: { log: Log }) {
   const config = statusConfig[log.status];
   const Icon = config.icon;
+  const strat = formatStrategy(log.strategy);
 
   return (
     <Link href={`/dashboard/logs/${log._id}`}>
@@ -286,13 +322,16 @@ function LogEntry({ log }: { log: Log }) {
                 <Icon className={`h-4 w-4 ${config.color}`} />
               </div>
               <div className="min-w-0">
+                {log.monitorName && (
+                  <p className="text-xs font-semibold text-primary mb-0.5 truncate">{log.monitorName}</p>
+                )}
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium truncate max-w-[200px] sm:max-w-md">
+                  <p className="text-sm text-muted-foreground truncate max-w-[200px] sm:max-w-md">
                     {log.url}
                   </p>
                   <Badge
                     variant="outline"
-                    className={`text-xs ${
+                    className={`text-[10px] ${
                       log.status === "success"
                         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                         : log.status === "timeout"
@@ -302,15 +341,25 @@ function LogEntry({ log }: { log: Log }) {
                   >
                     {config.label}
                   </Badge>
+                  <Badge variant="outline" className={`text-[10px] ${strat.color}`}>
+                    {strat.label}
+                  </Badge>
+                  {log.blocked && (
+                    <Badge className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px]">
+                      Blocked
+                    </Badge>
+                  )}
+                  {log.retryAttempt != null && log.retryAttempt > 0 && (
+                    <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
+                      Retry {log.retryAttempt}/3
+                    </Badge>
+                  )}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
-                  <span>{new Date(log.createdAt).toLocaleString()} ({timeAgo(log.createdAt)})</span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
+                  <span>{timeAgo(log.createdAt)}</span>
                   <span>{formatDuration(log.durationMs)}</span>
                   {log.itemCount != null && <span>{log.itemCount} items</span>}
-                  {log.matchCount != null && <span>{log.matchCount} matches</span>}
-                  {log.aiConfidence != null && (
-                    <span>{log.aiConfidence}% confidence</span>
-                  )}
+                  {log.matchCount != null && <span>{log.matchCount} match{log.matchCount !== 1 ? "es" : ""}</span>}
                   {log.error && (
                     <span className="text-red-400 truncate max-w-xs">{log.error}</span>
                   )}
