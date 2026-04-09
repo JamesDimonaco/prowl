@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 import { formatStrategy } from "@/lib/strategy";
+import { MAX_RETRIES } from "@/convex/shared";
 
 // Extended log type until Convex regenerates types with new fields
 interface LogExtended {
@@ -137,7 +138,7 @@ export default function LogDetailPage({
           )}
           {log.retryAttempt != null && log.retryAttempt > 0 && (
             <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
-              Retry attempt {log.retryAttempt} of 3
+              Retry attempt {log.retryAttempt} of {MAX_RETRIES}
             </Badge>
           )}
         </div>

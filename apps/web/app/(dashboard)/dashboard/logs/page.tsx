@@ -125,27 +125,30 @@ export default function LogsPage() {
       </div>
 
       {/* Summary bar */}
-      {logs && logs.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>{logs.length} total</span>
-          <span className="text-emerald-400">{logs.filter((l) => l.status === "success").length} success</span>
-          <span className="text-red-400">{logs.filter((l) => l.status === "error").length} errors</span>
-          {logs.some((l) => l.status === "timeout") && (
-            <span className="text-amber-400">{logs.filter((l) => l.status === "timeout").length} timeouts</span>
-          )}
-          {logs.some((l) => (l as any).blocked) && (
-            <span className="text-red-400">{logs.filter((l) => (l as any).blocked).length} blocked</span>
-          )}
-        </div>
-      )}
+      {logs && logs.length > 0 && (() => {
+        const successCount = logs.filter((l) => l.status === "success").length;
+        const errorCount = logs.filter((l) => l.status === "error").length;
+        const timeoutCount = logs.filter((l) => l.status === "timeout").length;
+        const blockedCount = logs.filter((l) => l.blocked).length;
+        return (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span>{logs.length} total</span>
+            <span className="text-emerald-400">{successCount} success</span>
+            <span className="text-red-400">{errorCount} errors</span>
+            {timeoutCount > 0 && <span className="text-amber-400">{timeoutCount} timeouts</span>}
+            {blockedCount > 0 && <span className="text-red-400">{blockedCount} blocked</span>}
+          </div>
+        );
+      })()}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="relative flex-1 sm:max-w-sm">
-          <label className="text-xs text-muted-foreground mb-1 block">Search</label>
+          <label htmlFor="log-search" className="text-xs text-muted-foreground mb-1 block">Search</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              id="log-search"
               placeholder="Search URL, monitor, or error..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
@@ -154,9 +157,9 @@ export default function LogsPage() {
           </div>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Status</label>
+          <label htmlFor="log-status" className="text-xs text-muted-foreground mb-1 block">Status</label>
           <Select value={statusFilter} onValueChange={(v) => { if (v) { setStatusFilter(v); setVisibleCount(PAGE_SIZE); } }}>
-            <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectTrigger id="log-status" className="w-full sm:w-[140px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -169,9 +172,9 @@ export default function LogsPage() {
         </div>
         {monitors.length > 1 && (
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Monitor</label>
+            <label htmlFor="log-monitor" className="text-xs text-muted-foreground mb-1 block">Monitor</label>
             <Select value={monitorFilter} onValueChange={(v) => { if (v) { setMonitorFilter(v); setVisibleCount(PAGE_SIZE); } }}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger id="log-monitor" className="w-full sm:w-[180px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -187,9 +190,9 @@ export default function LogsPage() {
         )}
         {monitors.length > 1 && (
           <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Group by</label>
+            <label htmlFor="log-groupby" className="text-xs text-muted-foreground mb-1 block">Group by</label>
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as "none" | "monitor")}>
-              <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectTrigger id="log-groupby" className="w-full sm:w-[150px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -307,7 +310,7 @@ interface Log {
 function LogEntry({ log }: { log: Log }) {
   const config = statusConfig[log.status];
   const Icon = config.icon;
-  const strat = formatStrategy((log as any).strategy);
+  const strat = formatStrategy(log.strategy);
 
   return (
     <Link href={`/dashboard/logs/${log._id}`}>
@@ -341,14 +344,14 @@ function LogEntry({ log }: { log: Log }) {
                   <Badge variant="outline" className={`text-[10px] ${strat.color}`}>
                     {strat.label}
                   </Badge>
-                  {(log as any).blocked && (
+                  {log.blocked && (
                     <Badge className="bg-red-500/10 text-red-400 border-red-500/20 text-[10px]">
                       Blocked
                     </Badge>
                   )}
-                  {(log as any).retryAttempt != null && (log as any).retryAttempt > 0 && (
+                  {log.retryAttempt != null && log.retryAttempt > 0 && (
                     <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
-                      Retry {(log as any).retryAttempt}/3
+                      Retry {log.retryAttempt}/3
                     </Badge>
                   )}
                 </div>
