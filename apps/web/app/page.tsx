@@ -4,7 +4,11 @@ import { PLANS } from "@/lib/plans";
 import { LandingNav } from "@/components/prowl/landing-nav";
 import { HeroCTA } from "@/components/prowl/hero-cta";
 import { MonitorCountBadge } from "@/components/prowl/monitor-count-badge";
-import { TryScanner } from "@/components/prowl/try-scanner";
+// TryScanner hidden — see PROWL-038 Phase 5c. Conversion data showed
+// users weren't engaging with the live demo. Source kept at
+// components/prowl/try-scanner.tsx; re-evaluate after the Phase 6
+// measurement window.
+// import { TryScanner } from "@/components/prowl/try-scanner";
 import { ExampleResults } from "@/components/prowl/example-results";
 import { Testimonials } from "@/components/prowl/testimonials";
 
@@ -79,8 +83,8 @@ export default function LandingPage() {
             {/* Example results showcase (inline) */}
             <ExampleResults />
 
-            {/* Interactive try-it scanner (client) */}
-            <TryScanner />
+            {/* TryScanner hidden — see PROWL-038 Phase 5c. */}
+            {/* <TryScanner /> */}
           </div>
         </section>
 
