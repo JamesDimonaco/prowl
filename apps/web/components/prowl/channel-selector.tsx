@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Mail, MessageCircle, Hash, Check, Settings } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTier } from "@/hooks/use-tier";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -25,6 +26,7 @@ interface ChannelSelectorProps {
 }
 
 export function ChannelSelector({ value, onChange, monitorId, disabled }: ChannelSelectorProps) {
+  const router = useRouter();
   const { tier } = useTier();
   const notifSettings = useQuery(api.notificationSettings.list);
   const { monitors } = useMonitors();
@@ -65,7 +67,10 @@ export function ChannelSelector({ value, onChange, monitorId, disabled }: Channe
       toast("Set up " + CHANNEL_CONFIG[channel].label + " in Settings first", {
         action: {
           label: "Go to Settings",
-          onClick: () => window.location.href = "/dashboard/settings?tab=notifications",
+          // router.push (not window.location.href) so the dashboard React tree
+          // — including in-progress create-monitor draft state — survives the
+          // navigation. See PROWL-038 Phase 1b/3.
+          onClick: () => router.push("/dashboard/settings?tab=notifications"),
         },
       });
       return;
