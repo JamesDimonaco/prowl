@@ -2,6 +2,11 @@ import { v } from "convex/values";
 import { internalAction } from "./_generated/server";
 
 const FROM_EMAIL = "PageAlert <alerts@pagealert.io>";
+// Onboarding/welcome emails come from a separate address so users can
+// mentally distinguish marketing from the actual notifications they
+// signed up for. Resend / DNS for hello@ is set up by James as part of
+// PROWL-038 Phase 4.
+const HELLO_FROM_EMAIL = "PageAlert <hello@pagealert.io>";
 const APP_URL = process.env.SITE_URL ?? "https://pagealert.io";
 const RESEND_TIMEOUT = 10_000;
 
@@ -478,5 +483,131 @@ export const sendPriceAlert = internalAction({
     } catch (e) {
       console.error("[email] Failed to send price alert, monitor:", args.monitorId, e instanceof Error ? e.message : "");
     }
+  },
+});
+
+/**
+ * Day 0 onboarding (welcome) email.
+ *
+ * The body intentionally hands the user one worked example as a story
+ * (Sarah / refurbished MacBook) plus a "Try this monitor in one click"
+ * deep-link that opens the create-monitor sheet pre-populated. The
+ * deep-link handler lives in app/(dashboard)/dashboard/page.tsx — see
+ * PROWL-038 Phase 4e.
+ *
+ * The processor that triggers this is internally gated by
+ * ONBOARDING_EMAILS_ENABLED, so this won't auto-send until James
+ * approves the template.
+ */
+export const sendOnboardingDay0 = internalAction({
+  args: { to: v.string(), userId: v.string() },
+  handler: async (_ctx, args) => {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      console.error("[onboarding] RESEND_API_KEY not configured, skipping");
+      return;
+    }
+
+    // The "try this monitor" deep-link in the body. Pre-fills the
+    // create-monitor sheet with a real, known-good URL + prompt so
+    // the user can scan it in one click.
+    const tryUrl = "https://www.apple.com/uk/shop/refurbished/mac";
+    const tryPrompt = "MacBook Pro M3 14 inch under £1500";
+    const tryHref = `${APP_URL}/dashboard?try=${encodeURIComponent(tryUrl)}&prompt=${encodeURIComponent(tryPrompt)}`;
+    const dashboardHref = `${APP_URL}/dashboard`;
+
+    const subject = "Welcome to PageAlert — let's set up your first monitor";
+
+    const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0a0a0b">
+  <div style="max-width:560px;margin:0 auto;padding:40px 20px">
+    <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1)">
+      <div style="background:#3b82f6;padding:24px 32px">
+        <h1 style="margin:0;color:#fff;font-size:20px;font-weight:600">Welcome to PageAlert</h1>
+      </div>
+      <div style="padding:32px;line-height:1.55">
+        <p style="margin:0 0 16px;color:#0a0a0b;font-size:16px">
+          You're in. Thanks for signing up.
+        </p>
+        <p style="margin:0 0 24px;color:#444;font-size:15px">
+          PageAlert watches any web page using AI &mdash; just paste a URL and describe what you're looking for in plain English. We'll check the page on a schedule and notify you the moment your conditions are met. No CSS selectors, no scraping code, no maintenance.
+        </p>
+
+        <div style="background:#f4f6fb;border-left:3px solid #3b82f6;padding:16px 20px;border-radius:6px;margin:0 0 28px">
+          <p style="margin:0 0 8px;color:#0a0a0b;font-size:14px;font-weight:600">Here's an example</p>
+          <p style="margin:0;color:#444;font-size:14px">
+            Sarah wanted a refurbished MacBook Pro M3 under &pound;1500. She pasted the Apple refurb store URL, typed her budget as a prompt, and four days later got an alert when one dropped into stock at her price. Total setup time: about 30 seconds.
+          </p>
+        </div>
+
+        <p style="margin:0 0 16px;color:#0a0a0b;font-size:15px;font-weight:600">
+          Try Sarah's exact monitor &mdash; one click:
+        </p>
+        <a href="${safeHref(tryHref)}" style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">
+          Try this monitor &rarr;
+        </a>
+        <p style="margin:12px 0 0;color:#888;font-size:12px">
+          Opens the create-monitor screen with the URL and prompt pre-filled. Edit anything before you scan.
+        </p>
+
+        <div style="margin-top:32px;padding-top:24px;border-top:1px solid #eee">
+          <p style="margin:0 0 8px;color:#444;font-size:14px">Want to start from scratch instead?</p>
+          <a href="${safeHref(dashboardHref)}" style="color:#3b82f6;text-decoration:none;font-weight:500;font-size:14px">
+            Open your dashboard &rarr;
+          </a>
+        </div>
+      </div>
+      <div style="padding:16px 32px;background:#f9fafb;border-top:1px solid #eee">
+        <p style="margin:0;color:#999;font-size:12px">
+          PageAlert &mdash; AI-powered website monitoring. <a href="${APP_URL}" style="color:#999">pagealert.io</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const text = `Welcome to PageAlert!
+
+You're in. Thanks for signing up.
+
+PageAlert watches any web page using AI — just paste a URL and describe what you're looking for in plain English. We'll check the page on a schedule and notify you the moment your conditions are met.
+
+Here's an example:
+Sarah wanted a refurbished MacBook Pro M3 under £1500. She pasted the Apple refurb store URL, typed her budget as a prompt, and four days later got an alert when one dropped into stock at her price.
+
+Try Sarah's exact monitor in one click:
+${tryHref}
+
+Or start from scratch:
+${dashboardHref}
+
+— PageAlert
+${APP_URL}`;
+
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: HELLO_FROM_EMAIL,
+        to: [args.to],
+        subject,
+        html,
+        text,
+      }),
+      signal: AbortSignal.timeout(RESEND_TIMEOUT),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error("[onboarding] day0 email failed:", res.status, body, "user:", args.userId);
+      throw new Error(`Day0 email failed: ${res.status}`);
+    }
+    console.log("[onboarding] day0 email sent, user:", args.userId);
   },
 });
