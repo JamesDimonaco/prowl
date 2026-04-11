@@ -1,3 +1,21 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Security overrides for vulnerable transitive dependencies.
+# Each entry references the upstream advisory; remove once the parent
+# package ships a fix and we upgrade to it.
+overrides:
+  # GHSA-8cpq-38p9-67gx, GHSA-fr9j-6mvq-frcv — MySQL SQL injection in kysely
+  # (not exploitable here: we use Convex, not MySQL, but pulled via better-auth)
+  kysely: ">=0.28.16"
+  # GHSA-... — defu prototype pollution (via better-auth)
+  defu: ">=6.1.7"
+  # GHSA-f886-m6hf-6m8v — brace-expansion ReDoS / memory exhaustion
+  brace-expansion: ">=1.1.13 <2 || >=2.0.2 <3 || >=3.0.1 <4 || >=5.0.5"
+  # GHSA-3v7f-55p6-f55p — picomatch ReDoS / method injection
+  picomatch: ">=2.3.2 <3 || >=4.0.4"
+  # GHSA-27v5-c462-wpq7 — path-to-regexp ReDoS (via @posthog/ai > MCP > express)
+  path-to-regexp: ">=8.4.2"
+  # GHSA-fw9q-39r9-c252 — langsmith prototype pollution (via @posthog/ai)
+  langsmith: ">=0.5.18"
