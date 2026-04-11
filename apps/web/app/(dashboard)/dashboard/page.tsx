@@ -58,6 +58,50 @@ export default function DashboardPage() {
     handleClone(source);
     router.replace("/dashboard", { scroll: false });
   }, [searchParams, monitors, openWithDefaults, router, atLimit]);
+
+  // Handle ?try=<url>&prompt=<prompt> — opens the create-monitor sheet
+  // pre-populated. Used by the day-0 onboarding email's "Try this monitor"
+  // button. See PROWL-038 Phase 4e.
+  const lastHandledTryRef = useRef<string | null>(null);
+  useEffect(() => {
+    const tryUrl = searchParams.get("try");
+    const tryPrompt = searchParams.get("prompt");
+    if (!tryUrl || !tryPrompt) {
+      lastHandledTryRef.current = null;
+      return;
+    }
+    const key = `${tryUrl}::${tryPrompt}`;
+    if (key === lastHandledTryRef.current) return;
+
+    // Validate URL — refuse anything that's not http(s)
+    let parsed: URL;
+    try {
+      parsed = new URL(tryUrl);
+    } catch {
+      lastHandledTryRef.current = key;
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      lastHandledTryRef.current = key;
+      return;
+    }
+
+    if (atLimit) {
+      toast.error("Monitor limit reached", {
+        description: "Upgrade your plan to add more monitors.",
+      });
+      lastHandledTryRef.current = key;
+      router.replace("/dashboard", { scroll: false });
+      return;
+    }
+
+    lastHandledTryRef.current = key;
+    openWithDefaults({ name: "", url: tryUrl, prompt: tryPrompt });
+    trackEvent("onboarding_deeplink_opened", {
+      url_host: parsed.hostname,
+    });
+    router.replace("/dashboard", { scroll: false });
+  }, [searchParams, openWithDefaults, router, atLimit]);
   const scanBudget = useQuery(api.tiers.canScan);
   const consumeScan = useMutation(api.tiers.consumeScan);
   const saveScanResult = useMutation(api.monitors.saveScanResult);

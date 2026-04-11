@@ -8,10 +8,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Radar, Github, Mail, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { trackSignUp, trackSignIn } from "@/lib/posthog";
+
+/**
+ * Only honour `?next=` values that point to a same-origin path. Refuse
+ * absolute URLs, protocol-relative URLs, and anything that doesn't start
+ * with a single "/" — this is a standard open-redirect guard.
+ */
+function safeNext(raw: string | null): string {
+  if (!raw) return "/dashboard";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -20,6 +31,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = safeNext(searchParams.get("next"));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,7 +53,7 @@ export default function LoginPage() {
         });
         trackSignIn({ method: "email" });
       }
-      router.push("/dashboard");
+      router.push(nextUrl);
     } catch {
       toast.error(isSignUp ? "Failed to create account" : "Invalid credentials");
     } finally {
@@ -53,7 +66,7 @@ export default function LoginPage() {
     try {
       await authClient.signIn.social({
         provider,
-        callbackURL: "/dashboard",
+        callbackURL: nextUrl,
       });
     } catch {
       toast.error(`Failed to sign in with ${provider}`);
