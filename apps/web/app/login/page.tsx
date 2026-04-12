@@ -29,10 +29,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = safeNext(searchParams.get("next"));
+  const [isSignUp, setIsSignUp] = useState(searchParams.get("mode") === "signup");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

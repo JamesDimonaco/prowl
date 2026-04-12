@@ -510,9 +510,11 @@ export const sendOnboardingDay0 = internalAction({
 
     // The "try this monitor" deep-link in the body. Pre-fills the
     // create-monitor sheet with a real, known-good URL + prompt so
-    // the user can scan it in one click.
-    const tryUrl = "https://www.apple.com/uk/shop/refurbished/mac";
-    const tryPrompt = "MacBook Pro M3 14 inch under £1500";
+    // the user can scan it in one click. Uses a different example from
+    // the homepage (which uses Apple refurb / MacBooks) so the email
+    // feels fresh, not repetitive.
+    const tryUrl = "https://news.ycombinator.com/jobs";
+    const tryPrompt = "Engineering role at an AI or developer tools startup";
     const tryHref = `${APP_URL}/dashboard?try=${encodeURIComponent(tryUrl)}&prompt=${encodeURIComponent(tryPrompt)}`;
     const dashboardHref = `${APP_URL}/dashboard`;
 
@@ -538,12 +540,12 @@ export const sendOnboardingDay0 = internalAction({
         <div style="background:#f4f6fb;border-left:3px solid #3b82f6;padding:16px 20px;border-radius:6px;margin:0 0 28px">
           <p style="margin:0 0 8px;color:#0a0a0b;font-size:14px;font-weight:600">Here's an example</p>
           <p style="margin:0;color:#444;font-size:14px">
-            Sarah wanted a refurbished MacBook Pro M3 under &pound;1500. She pasted the Apple refurb store URL, typed her budget as a prompt, and four days later got an alert when one dropped into stock at her price. Total setup time: about 30 seconds.
+            Tom wanted to find a role at an AI startup. He pasted the Hacker News jobs page, typed &ldquo;engineering role at an AI or dev tools startup&rdquo; as his prompt, and got an alert three days later when a match appeared. Total setup time: about 30 seconds.
           </p>
         </div>
 
         <p style="margin:0 0 16px;color:#0a0a0b;font-size:15px;font-weight:600">
-          Try Sarah's exact monitor &mdash; one click:
+          Try Tom's exact monitor &mdash; one click:
         </p>
         <a href="${safeHref(tryHref)}" style="display:inline-block;background:#3b82f6;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">
           Try this monitor &rarr;
@@ -576,9 +578,9 @@ You're in. Thanks for signing up.
 PageAlert watches any web page using AI — just paste a URL and describe what you're looking for in plain English. We'll check the page on a schedule and notify you the moment your conditions are met.
 
 Here's an example:
-Sarah wanted a refurbished MacBook Pro M3 under £1500. She pasted the Apple refurb store URL, typed her budget as a prompt, and four days later got an alert when one dropped into stock at her price.
+Tom wanted to find a role at an AI startup. He pasted the Hacker News jobs page, typed "engineering role at an AI or dev tools startup" as his prompt, and got an alert three days later when a match appeared.
 
-Try Sarah's exact monitor in one click:
+Try Tom's exact monitor in one click:
 ${tryHref}
 
 Or start from scratch:

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mail, MessageCircle, Hash, Check, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTier } from "@/hooks/use-tier";
+import { useCreateMonitor } from "@/hooks/use-create-monitor";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useMonitors } from "@/hooks/use-monitors";
@@ -27,6 +28,7 @@ interface ChannelSelectorProps {
 
 export function ChannelSelector({ value, onChange, monitorId, disabled }: ChannelSelectorProps) {
   const router = useRouter();
+  const { close: closeSheet } = useCreateMonitor();
   const { tier } = useTier();
   const notifSettings = useQuery(api.notificationSettings.list);
   const { monitors } = useMonitors();
@@ -67,10 +69,13 @@ export function ChannelSelector({ value, onChange, monitorId, disabled }: Channe
       toast("Set up " + CHANNEL_CONFIG[channel].label + " in Settings first", {
         action: {
           label: "Go to Settings",
-          // router.push (not window.location.href) so the dashboard React tree
-          // — including in-progress create-monitor draft state — survives the
-          // navigation. See PROWL-038 Phase 1b/3.
-          onClick: () => router.push("/dashboard/settings?tab=notifications"),
+          onClick: () => {
+            // Close the sheet first so it doesn't stay open over the
+            // settings page. The draft is already persisted to
+            // localStorage (Phase 3) so nothing is lost.
+            closeSheet();
+            router.push("/dashboard/settings?tab=notifications");
+          },
         },
       });
       return;
