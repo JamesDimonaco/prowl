@@ -489,8 +489,8 @@ export const sendPriceAlert = internalAction({
 /**
  * Day 0 onboarding (welcome) email.
  *
- * The body hands the user one worked example (Mac Mini stock check on
- * Apple's website) plus a "Try this monitor in one click" deep-link
+ * The body hands the user one worked example (refurbished Mac Mini M4
+ * Pro on Apple Canada's refurb store) plus a "Try this monitor" deep-link
  * that opens the create-monitor sheet pre-populated. The deep-link
  * handler lives in app/(dashboard)/dashboard/page.tsx — see PROWL-038
  * Phase 4e.
@@ -508,13 +508,12 @@ export const sendOnboardingDay0 = internalAction({
       return;
     }
 
-    // The "try this monitor" deep-link in the body. Pre-fills the
-    // create-monitor sheet with a real, known-good URL + prompt so
-    // the user can scan it in one click. Uses the Mac Mini stock
-    // example — real users are already doing this exact search, so
-    // it resonates as a concrete, relatable use case.
-    const tryUrl = "https://www.apple.com/uk/shop/buy-mac/mac-mini";
-    const tryPrompt = "Mac Mini M4 in stock";
+    // The "try this monitor" deep-link. Apple's refurbished Mac Mini
+    // page has volatile stock — items appear and sell out fast, which
+    // makes it a perfect, relatable monitoring use case. Currently
+    // only ~1 base model is listed; M4 Pro models come and go in waves.
+    const tryUrl = "https://www.apple.com/ca/shop/refurbished/mac/mac-mini";
+    const tryPrompt = "Mac Mini M4 Pro under $1,500";
     const tryHref = `${APP_URL}/dashboard?try=${encodeURIComponent(tryUrl)}&prompt=${encodeURIComponent(tryPrompt)}`;
     const dashboardHref = `${APP_URL}/dashboard`;
 
@@ -538,9 +537,9 @@ export const sendOnboardingDay0 = internalAction({
         </p>
 
         <div style="background:#f4f6fb;border-left:3px solid #3b82f6;padding:16px 20px;border-radius:6px;margin:0 0 28px">
-          <p style="margin:0 0 8px;color:#0a0a0b;font-size:14px;font-weight:600">Here's an example</p>
+          <p style="margin:0 0 8px;color:#0a0a0b;font-size:14px;font-weight:600">Here's something people are already doing</p>
           <p style="margin:0;color:#444;font-size:14px">
-            Lots of people are using PageAlert to track when specific Mac Minis come back in stock on Apple&rsquo;s website. They paste the Mac Mini page, type &ldquo;Mac Mini M4 in stock&rdquo;, and get an alert as soon as one appears. Total setup time: about 30 seconds.
+            Apple sells refurbished Macs at a solid discount &mdash; verified, with warranty, same as new. The catch is stock comes and goes fast, especially for popular configs like the Mac Mini M4 Pro. A few of our users have PageAlert watching the refurb page so they get a heads up the moment one appears at their price.
           </p>
         </div>
 
@@ -577,8 +576,8 @@ You're in. Thanks for signing up.
 
 PageAlert watches any web page using AI — just paste a URL and describe what you're looking for in plain English. We'll check the page on a schedule and notify you the moment your conditions are met.
 
-Here's an example:
-Lots of people are using PageAlert to track when specific Mac Minis come back in stock on Apple's website. They paste the Mac Mini page, type "Mac Mini M4 in stock", and get an alert as soon as one appears. Total setup time: about 30 seconds.
+Here's something people are already doing:
+Apple sells refurbished Macs at a solid discount — verified, with warranty, same as new. The catch is stock comes and goes fast, especially for popular configs like the Mac Mini M4 Pro. A few of our users have PageAlert watching the refurb page so they get a heads up the moment one appears at their price.
 
 Try this exact monitor in one click:
 ${tryHref}
