@@ -3,7 +3,7 @@
 import { Navbar } from "@/components/prowl/navbar";
 import { useAuth } from "@/hooks/use-auth";
 import { CreateMonitorProvider } from "@/hooks/use-create-monitor";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -18,14 +18,23 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const claimAnonymous = useMutation(api.anonymous.claimMyAnonymousMonitors);
   const claimedRef = useRef(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.replace("/login");
+      // Preserve the current URL (path + query) so we can come back here
+      // after login. This is what makes the email "Try this monitor"
+      // deep-link work for logged-out users — the ?try= and ?prompt=
+      // params survive the auth detour. See PROWL-038 Phase 4e.
+      const qs = searchParams.toString();
+      const next = qs ? `${pathname}?${qs}` : pathname;
+      const loginUrl = next === "/dashboard" ? "/login" : `/login?next=${encodeURIComponent(next)}`;
+      router.replace(loginUrl);
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, router, pathname, searchParams]);
 
   // Transfer anonymous monitors on first dashboard load
   useEffect(() => {

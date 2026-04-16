@@ -24,6 +24,7 @@ interface CloneDefaults {
 interface CreateMonitorContextValue {
   open: () => void;
   openWithDefaults: (defaults: CloneDefaults) => void;
+  close: () => void;
   resume: (monitorId: Id<"monitors">) => void;
   activeMonitorId: Id<"monitors"> | null;
   isScanning: boolean;
@@ -33,6 +34,7 @@ interface CreateMonitorContextValue {
 const CreateMonitorContext = createContext<CreateMonitorContextValue>({
   open: () => {},
   openWithDefaults: () => {},
+  close: () => {},
   resume: () => {},
   activeMonitorId: null,
   isScanning: false,
@@ -74,6 +76,10 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
     setCloneDefaults(defaults);
     setSheetOpen(true);
   }, [isScanning]);
+
+  const close = useCallback(() => {
+    setSheetOpen(false);
+  }, []);
 
   const resume = useCallback((monitorId: Id<"monitors">) => {
     setActiveMonitorId(monitorId);
@@ -262,7 +268,7 @@ export function CreateMonitorProvider({ children }: { children: ReactNode }) {
 
   return (
     <CreateMonitorContext.Provider
-      value={{ open, openWithDefaults, resume, activeMonitorId, isScanning, isOpen: sheetOpen }}
+      value={{ open, openWithDefaults, close, resume, activeMonitorId, isScanning, isOpen: sheetOpen }}
     >
       {children}
       <CreateMonitorSheet

@@ -23,6 +23,8 @@ import {
   XCircle,
   AlertTriangle,
   ArrowRight,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { MatchConditionsEditor } from "./match-conditions-editor";
@@ -34,6 +36,12 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import type { MatchConditions, ExtractedItem, ExtractionSchema } from "@prowl/shared";
 import { toast } from "sonner";
+import {
+  readMonitorDraft,
+  writeMonitorDraft,
+  clearMonitorDraft,
+} from "@/lib/monitor-draft";
+import { trackMonitorDraftRestored, trackMonitorDraftCleared } from "@/lib/posthog";
 
 type CheckInterval = "5m" | "15m" | "30m" | "1h" | "6h" | "24h";
 
@@ -73,6 +81,11 @@ export function CreateMonitorSheet({
   const [prompt, setPrompt] = useState("");
   const [checkInterval, setCheckInterval] = useState<CheckInterval>("6h");
   const [channels, setChannels] = useState<("email" | "telegram" | "discord")[]>(["email"]);
+  // True when the form was just hydrated from a saved draft, used to show
+  // the "Restored from your last draft" banner. Cleared when the user
+  // interacts with the form for the first time after hydration, or when
+  // they hit "Start over". See PROWL-038 Phase 3.
+  const [hydratedFromDraft, setHydratedFromDraft] = useState(false);
 
   // Match conditions editing
   const [editedConditions, setEditedConditions] = useState<MatchConditions | null>(null);
@@ -84,10 +97,17 @@ export function CreateMonitorSheet({
   // Read the monitor from Convex (reactive - updates when scan completes)
   const monitor = useMonitor(activeMonitorId!);
 
+  // After an initial scan is blocked, the monitor flips to status="active"
+  // with retryCount > 0 and a nextCheckAt scheduled by the scheduler. We treat
+  // this as "still scanning" from the user's perspective so they get continued
+  // visual feedback rather than an empty preview while a retry is queued.
+  const isInRetry =
+    !!monitor && (monitor.retryCount ?? 0) > 0 && monitor.status !== "error";
+
   // Determine step from state
   const step = !activeMonitorId
     ? "form"
-    : (isScanning || monitor?.status === "scanning" || monitor?.status === "error")
+    : (isScanning || monitor?.status === "scanning" || monitor?.status === "error" || isInRetry)
       ? "scanning"
       : "preview";
 
@@ -107,24 +127,49 @@ export function CreateMonitorSheet({
   // Default channels to all configured channels
   const notifSettings = useQuery(api.notificationSettings.list);
 
-  // Reset form when the sheet opens for a new monitor (false → true transition)
+  // Reset (or hydrate from draft) when the sheet opens for a new monitor.
+  // Hydration takes precedence over reset so users who navigated away
+  // mid-form don't lose their work. See PROWL-038 Phase 3.
   const prevOpenRef = useRef(open);
   useEffect(() => {
     if (open && !prevOpenRef.current && !activeMonitorId && !isScanning) {
-      resetForm();
-      // Set default channels to all configured ones
-      const configured: ("email" | "telegram" | "discord")[] = ["email"];
-      if (notifSettings) {
-        for (const s of notifSettings) {
-          if (s.enabled && (s.channel === "telegram" || s.channel === "discord")) {
-            configured.push(s.channel);
+      const draft = readMonitorDraft();
+      if (draft) {
+        setName(draft.name);
+        setUrl(draft.url);
+        setPrompt(draft.prompt);
+        setCheckInterval(draft.checkInterval);
+        setChannels(draft.channels);
+        setHydratedFromDraft(true);
+        trackMonitorDraftRestored();
+      } else {
+        resetForm();
+        // Set default channels to all configured ones
+        const configured: ("email" | "telegram" | "discord")[] = ["email"];
+        if (notifSettings) {
+          for (const s of notifSettings) {
+            if (s.enabled && (s.channel === "telegram" || s.channel === "discord")) {
+              configured.push(s.channel);
+            }
           }
         }
+        setChannels(configured);
+        setHydratedFromDraft(false);
       }
-      setChannels(configured);
     }
     prevOpenRef.current = open;
   }, [open, activeMonitorId, isScanning, notifSettings]);
+
+  // Debounced persistence of the draft. Only writes when the form has
+  // some content; the writeMonitorDraft helper short-circuits empty drafts.
+  useEffect(() => {
+    if (activeMonitorId || isScanning) return;
+    if (!open) return;
+    const t = setTimeout(() => {
+      writeMonitorDraft({ name, url, prompt, checkInterval, channels });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [name, url, prompt, checkInterval, channels, open, activeMonitorId, isScanning]);
 
   // Pre-populate form when clone defaults are provided
   useEffect(() => {
@@ -175,18 +220,26 @@ export function CreateMonitorSheet({
     }
   }
 
-  // Floating indicator when scanning in background
-  const showFloatingIndicator = !open && (isScanning || monitor?.status === "scanning");
+  // Floating indicator when scanning (or auto-retrying) in background
+  const showFloatingIndicator = !open && (isScanning || monitor?.status === "scanning" || isInRetry);
+  const retryAttempt = monitor?.retryCount ?? 0;
 
   return (
     <>
       {showFloatingIndicator && (
         <button
           onClick={() => onOpenChange(true)}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 transition-colors animate-in slide-in-from-bottom-4"
+          className="fixed bottom-6 right-6 z-50 flex flex-col items-start gap-1 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 transition-colors animate-in slide-in-from-bottom-4 max-w-xs"
         >
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Scanning... {elapsed}s
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {isInRetry ? `Retry ${retryAttempt} of 3` : `Scanning... ${elapsed}s`}
+          </span>
+          {isInRetry && (
+            <span className="text-[11px] font-normal opacity-80">
+              The site blocked us — trying again with a proxy
+            </span>
+          )}
         </button>
       )}
 
@@ -198,12 +251,14 @@ export function CreateMonitorSheet({
                 <Radar className="h-4 w-4 text-primary" />
               </div>
               {step === "form" && "New Monitor"}
-              {step === "scanning" && "Scanning..."}
+              {step === "scanning" && (isInRetry ? "Retrying..." : "Scanning...")}
               {step === "preview" && "Review Results"}
             </SheetTitle>
             <SheetDescription>
               {step === "form" && "Paste a URL and describe what you're looking for."}
-              {step === "scanning" && "AI is scanning the page and extracting data..."}
+              {step === "scanning" && (isInRetry
+                ? "The first attempt was blocked — automatically retrying."
+                : "AI is scanning the page and extracting data...")}
               {step === "preview" && "Review the extracted data and adjust your filters."}
             </SheetDescription>
           </SheetHeader>
@@ -214,6 +269,10 @@ export function CreateMonitorSheet({
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
+                  // Clear the draft as soon as the scan starts — once we have
+                  // an activeMonitorId the form is no longer in a "draft" state.
+                  clearMonitorDraft();
+                  setHydratedFromDraft(false);
                   onStartScan({
                     name: name || `Monitor ${new URL(url).hostname}`,
                     url,
@@ -224,6 +283,24 @@ export function CreateMonitorSheet({
                 }}
                 className="space-y-6"
               >
+                {hydratedFromDraft && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+                    <span className="text-primary">Restored from your last draft</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearMonitorDraft();
+                        resetForm();
+                        setHydratedFromDraft(false);
+                        trackMonitorDraftCleared();
+                      }}
+                      className="text-muted-foreground hover:text-foreground underline"
+                    >
+                      Start over
+                    </button>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="create-name" className="text-sm font-medium">Name</Label>
                   <Input
@@ -264,7 +341,17 @@ export function CreateMonitorSheet({
                 </div>
                 <ChannelSelector value={channels} onChange={setChannels} monitorId={null} />
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      // Cancel = abandon the draft. The user can always
+                      // start fresh next time.
+                      clearMonitorDraft();
+                      setHydratedFromDraft(false);
+                      onOpenChange(false);
+                    }}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" className="gap-2 shadow-sm shadow-primary/15">
@@ -294,16 +381,71 @@ export function CreateMonitorSheet({
                 ) : (
                   <>
                     <Loader2 className="h-12 w-12 animate-spin text-primary mb-6" />
-                    <p className="text-lg font-semibold mb-1">Scanning page...</p>
-                    <p className="text-sm text-muted-foreground mb-1">{elapsed}s elapsed</p>
+                    <p className="text-lg font-semibold mb-1">
+                      {isInRetry ? `Retry ${retryAttempt} of 3` : "Scanning page..."}
+                    </p>
+                    {isInRetry ? (
+                      <div className="text-sm text-muted-foreground text-center max-w-sm space-y-1 mb-1">
+                        <p>The site blocked the first attempt.</p>
+                        <p>
+                          We&apos;re trying again automatically with a proxy
+                          {retryAttempt >= 2 ? " and a different browser" : ""}.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mb-1">{elapsed}s elapsed</p>
+                    )}
                     <p className="text-xs text-muted-foreground font-mono truncate max-w-sm">
                       {monitor?.url}
                     </p>
                     <p className="text-xs text-muted-foreground mt-4">
-                      You can close this panel — the scan will continue.
+                      You can close this panel — {isInRetry ? "we'll keep retrying in the background." : "the scan will continue."}
                     </p>
+
+                    {/* While-you-wait suggestions — give the user something
+                        productive to do during the 10-30s scan instead of
+                        staring at a spinner. Only shown during the initial
+                        scan (not retry). */}
+                    {!isInRetry && (
+                      <div className="mt-8 w-full max-w-sm space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground text-center">While you wait</p>
+                        <div className="space-y-1.5">
+                          {!(notifSettings?.find((s) => s.channel === "telegram")?.enabled) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onOpenChange(false);
+                                router.push("/dashboard/settings?tab=notifications");
+                              }}
+                              className="w-full flex items-center gap-3 rounded-lg border border-border/30 bg-card/50 px-3 py-2.5 text-left text-xs hover:bg-muted/50 transition-colors"
+                            >
+                              <MessageCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span>
+                                <span className="font-medium text-foreground">Set up Telegram</span>
+                                <span className="text-muted-foreground"> — get instant alerts on your phone</span>
+                              </span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onOpenChange(false);
+                              router.push("/dashboard/settings?tab=notifications");
+                            }}
+                            className="w-full flex items-center gap-3 rounded-lg border border-border/30 bg-card/50 px-3 py-2.5 text-left text-xs hover:bg-muted/50 transition-colors"
+                          >
+                            <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span>
+                              <span className="font-medium text-foreground">Send a test email</span>
+                              <span className="text-muted-foreground"> — make sure alerts reach your inbox</span>
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <Button variant="ghost" className="mt-4 text-destructive" onClick={onCancelScan}>
-                      Cancel scan
+                      Cancel {isInRetry ? "retries" : "scan"}
                     </Button>
                   </>
                 )}
@@ -312,7 +454,36 @@ export function CreateMonitorSheet({
 
             {/* ---- STEP 3: PREVIEW ---- */}
             {step === "preview" && monitor && (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-2">
+                {/* Top action bar — surface the next step immediately so the
+                    user doesn't have to scroll past insights/filters/items
+                    before discovering "View Details". See PROWL-038 Phase 2. */}
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">
+                      {matches.length > 0
+                        ? `${matches.length} match${matches.length !== 1 ? "es" : ""} found`
+                        : "Scan complete"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Review the filters below or jump straight to the monitor.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      await handleConfirm();
+                      if (activeMonitorId) {
+                        router.push(`/dashboard/monitors/${activeMonitorId}`);
+                      }
+                    }}
+                    className="gap-2 shrink-0"
+                  >
+                    View Details
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
                 {/* AI Insights */}
                 {schema?.insights && <AiInsightsCard insights={schema.insights} />}
 
@@ -356,7 +527,7 @@ export function CreateMonitorSheet({
                     Extracted Items
                     <Badge variant="outline" className="ml-2 text-xs">{allItems.length}</Badge>
                   </h3>
-                  <div className="max-h-[300px] overflow-y-auto space-y-2 rounded-lg border border-border/30 p-3">
+                  <div className="max-h-[240px] overflow-y-auto space-y-2 rounded-lg border border-border/30 p-3">
                     {allItems.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-8">
                         No items extracted from the page
@@ -402,25 +573,36 @@ export function CreateMonitorSheet({
                       })
                     )}
                   </div>
+                  {allItems.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground/80 mt-2 text-center">
+                      Showing {allItems.length} extracted item{allItems.length !== 1 ? "s" : ""} — full list and history live on the details page
+                    </p>
+                  )}
                 </div>
 
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
-                  <Button variant="outline" onClick={handleConfirm} className="gap-2 w-full sm:w-auto">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Looks Good
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      await handleConfirm();
-                      if (activeMonitorId) {
-                        router.push(`/dashboard/monitors/${activeMonitorId}`);
-                      }
-                    }}
-                    className="gap-2 shadow-sm shadow-primary/15 w-full sm:w-auto"
-                  >
-                    View Details
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
+                {/* Sticky bottom action bar — keeps the CTAs visible no matter
+                    how far the user has scrolled down the items list. The
+                    negative margins extend it across the SheetContent's
+                    p-4 sm:p-6 padding so it spans the full sheet width. */}
+                <div className="sticky bottom-0 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 mt-6 border-t border-border/30 bg-background/95 backdrop-blur px-4 sm:px-6 py-4">
+                  <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                    <Button variant="outline" onClick={handleConfirm} className="gap-2 w-full sm:w-auto">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Looks Good
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        await handleConfirm();
+                        if (activeMonitorId) {
+                          router.push(`/dashboard/monitors/${activeMonitorId}`);
+                        }
+                      }}
+                      className="gap-2 shadow-sm shadow-primary/15 w-full sm:w-auto"
+                    >
+                      View Details
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

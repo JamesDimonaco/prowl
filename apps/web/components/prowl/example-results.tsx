@@ -1,8 +1,7 @@
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, TrendingDown, Zap, Clock, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2, TrendingDown, Zap, Clock } from "lucide-react";
 import { EXAMPLE_ITEMS, EXAMPLE_MATCHES, EXAMPLE_PRICE_DROPS } from "@/lib/example-data";
+import { ExampleResultsCta } from "./example-results-cta";
 
 export function ExampleResults() {
   const teaser = EXAMPLE_ITEMS.slice(0, 5);
@@ -86,19 +85,9 @@ export function ExampleResults() {
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-border/20 px-4 sm:px-6 py-3 bg-muted/20 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Example results from a real scan
-          </p>
-          <Link
-            href="/try/example"
-            className="text-xs text-primary hover:underline font-medium flex items-center gap-1"
-          >
-            See full example
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
+        {/* Prominent CTA — replaces the previous tiny "See full example"
+            text link in the footer. See PROWL-038 Phase 5b. */}
+        <ExampleResultsCta />
       </div>
     </div>
   );

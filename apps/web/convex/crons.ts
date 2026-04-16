@@ -17,4 +17,13 @@ crons.interval(
   internal.anonymous.cleanupExpired
 );
 
+// Process pending onboarding emails (welcome sequence). The processor
+// is internally gated by ONBOARDING_EMAILS_ENABLED so this is a no-op
+// until the kill switch is flipped. See PROWL-038 Phase 4.
+crons.interval(
+  "process-onboarding-emails",
+  { hours: 1 },
+  internal.onboarding.processDueEmails
+);
+
 export default crons;

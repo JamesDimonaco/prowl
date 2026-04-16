@@ -193,4 +193,31 @@ export default defineSchema({
     name: v.string(),
     value: v.number(),
   }).index("by_name", ["name"]),
+
+  // Onboarding email scheduler — one row per (user, step). The four steps
+  // are scheduled at signup time and processed by an hourly cron. See
+  // PROWL-038 Phase 4. The day1/day3/day7 rows are queued from day one but
+  // only the day0 send is wired up until Phase 7 — keeps the schema stable.
+  onboardingEmails: defineTable({
+    userId: v.string(),
+    email: v.string(),
+    step: v.union(
+      v.literal("day0"),
+      v.literal("day1"),
+      v.literal("day3"),
+      v.literal("day7"),
+    ),
+    scheduledFor: v.number(), // ms epoch
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("failed"),
+      v.literal("skipped"),
+    ),
+    sentAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_status_scheduledFor", ["status", "scheduledFor"])
+    .index("by_userId_step", ["userId", "step"]),
 });

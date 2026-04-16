@@ -18,6 +18,7 @@ import type * as logs from "../logs.js";
 import type * as monitors from "../monitors.js";
 import type * as notificationSettings from "../notificationSettings.js";
 import type * as notifications from "../notifications.js";
+import type * as onboarding from "../onboarding.js";
 import type * as reviews from "../reviews.js";
 import type * as scheduler from "../scheduler.js";
 import type * as shared from "../shared.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   monitors: typeof monitors;
   notificationSettings: typeof notificationSettings;
   notifications: typeof notifications;
+  onboarding: typeof onboarding;
   reviews: typeof reviews;
   scheduler: typeof scheduler;
   shared: typeof shared;
